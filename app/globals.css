@@ -1462,3 +1462,10 @@ button,a{
   .breathing-dragon{width:220px;transform:scale(.9);margin:-1px auto -12px}
   .breath-orb{width:155px;height:155px}
 }
+
+/* QUEST MAP — ten modules stay balanced as five rows of two */
+.quest-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  max-width:950px;
+}
+.quest-card:last-child{grid-column:auto}
