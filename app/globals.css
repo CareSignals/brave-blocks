@@ -717,7 +717,33 @@ button,a{
     object-fit:contain;
   }
   .hero-status{grid-template-columns:auto minmax(0,1fr)}
-  .key-art-promise{padding:14px 16px}
+  .key-art-promise{
+    position:relative;
+    left:auto;
+    right:auto;
+    bottom:auto;
+    width:100%;
+    max-width:none;
+    margin:0;
+    display:grid;
+    grid-template-columns:54px minmax(0,1fr);
+    align-items:center;
+    gap:12px;
+    padding:14px 16px;
+    border-left:0;
+    border-right:0;
+    box-shadow:0 5px 0 #090a29;
+  }
+  .key-art-promise>span{
+    font-size:40px;
+    text-align:center;
+  }
+  .key-art-promise p{
+    min-width:0;
+    margin:0;
+    overflow-wrap:normal;
+    word-break:normal;
+  }
   .player-deck{
     grid-template-columns:1fr;
     margin-top:20px;
