@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
-type Quest = "home" | "feelings" | "body" | "calm" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
+type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
 type Loot = { icon: string; name: string; line: string };
+type VoiceMode = "glorp" | "capy" | "home";
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -91,13 +92,74 @@ const calmSteps = [
   { label: "BLOW OUT", time: 5000 }, { label: "SHIELD MAXED!", time: 1000 },
 ];
 
+const narratorModes: Record<VoiceMode, {
+  icon: string;
+  name: string;
+  line: string;
+  sample: string;
+  rate: number;
+  pitch: number;
+  voiceHints: RegExp[];
+}> = {
+  glorp: {
+    icon: "🟢",
+    name: "DJ GLORP",
+    line: "Upbeat gamer hype",
+    sample: "DJ Glorp online. Your choices are yours. Quest mode, let’s go!",
+    rate: 1.02,
+    pitch: 1.12,
+    voiceHints: [/google us english/i, /samantha/i, /ava/i, /zira/i],
+  },
+  capy: {
+    icon: "🐹",
+    name: "CHILL CAPY",
+    line: "Warm + extra chill",
+    sample: "Chill Capy here. No rush. You can choose, pause, or pass.",
+    rate: .86,
+    pitch: .96,
+    voiceHints: [/daniel/i, /alex/i, /david/i, /google uk english male/i],
+  },
+  home: {
+    icon: "💚",
+    name: "HOME BASE",
+    line: "Steady + reassuring",
+    sample: "Home Base is online. You are loved on easy days and hard days.",
+    rate: .9,
+    pitch: 1.02,
+    voiceHints: [/susan/i, /karen/i, /samantha/i, /google us english/i],
+  },
+};
+let activeNarratorMode: VoiceMode = "glorp";
+
+function equipNarrator(mode: VoiceMode) {
+  activeNarratorMode = mode;
+}
+
+function findNarratorVoice(mode: VoiceMode) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return undefined;
+  const voices = window.speechSynthesis.getVoices();
+  const englishVoices = voices.filter((item) => item.lang.toLowerCase().startsWith("en"));
+  const pool = englishVoices.length ? englishVoices : voices;
+  for (const hint of narratorModes[mode].voiceHints) {
+    const match = pool.find((item) => hint.test(item.name));
+    if (match) return match;
+  }
+  return pool.find((item) => item.default) ?? pool[0];
+}
+
 function say(text: string) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
-  const voice = new SpeechSynthesisUtterance(text);
-  voice.rate = 0.84;
-  voice.pitch = 1.06;
-  window.speechSynthesis.speak(voice);
+  const utterance = new SpeechSynthesisUtterance(text);
+  const mode = narratorModes[activeNarratorMode];
+  const selectedVoice = findNarratorVoice(activeNarratorMode);
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+    utterance.lang = selectedVoice.lang;
+  } else utterance.lang = "en-US";
+  utterance.rate = mode.rate;
+  utterance.pitch = mode.pitch;
+  window.speechSynthesis.speak(utterance);
 }
 
 function playSound(kind: "tap" | "win" | "open", muted: boolean) {
@@ -147,6 +209,91 @@ function Victory({ loot, avatar, onClose }: { loot: Loot; avatar: string; onClos
   </div>;
 }
 
+function VoiceLab({
+  mode,
+  onChoose,
+  onClose,
+}: {
+  mode: VoiceMode;
+  onChoose: (mode: VoiceMode) => void;
+  onClose: () => void;
+}) {
+  const [voiceCount, setVoiceCount] = useState(0);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      if ("speechSynthesis" in window) setVoiceCount(window.speechSynthesis.getVoices().length);
+    };
+    loadVoices();
+    window.speechSynthesis?.addEventListener?.("voiceschanged", loadVoices);
+    return () => window.speechSynthesis?.removeEventListener?.("voiceschanged", loadVoices);
+  }, []);
+
+  const choose = (next: VoiceMode) => {
+    equipNarrator(next);
+    onChoose(next);
+    say(narratorModes[next].sample);
+  };
+
+  return <div className="portal-screen" role="dialog" aria-modal="true" aria-label="Choose a Brave Blocks narrator">
+    <section className="portal-card voice-lab">
+      <button className="portal-close" onClick={onClose} aria-label="Close narrator choices">×</button>
+      <small>ORIGINAL VOICE PACKS</small>
+      <h2>🎙️ PICK THE VIBE</h2>
+      <p>Tap a character to hear a sample. These are original narrator styles—not a celebrity or character imitation.</p>
+      <div className="voice-grid">
+        {(Object.keys(narratorModes) as VoiceMode[]).map((key) => {
+          const item = narratorModes[key];
+          return <button className={mode === key ? "voice-card active" : "voice-card"} key={key} onClick={() => choose(key)}>
+            <span>{item.icon}</span><strong>{item.name}</strong><small>{item.line}</small><i>{mode === key ? "EQUIPPED ✓" : "TAP TO TRY"}</i>
+          </button>;
+        })}
+      </div>
+      <div className="voice-note"><strong>💚 PRIVATE-ONLY OPTION</strong><p>Josh or Nicole can later record short Home Base lines. Their audio would stay out of this public review version.</p></div>
+      <p className="device-voice-note">{voiceCount ? `Using one of ${voiceCount} voices available on this device.` : "The tablet will use its available built-in voice."}</p>
+      <button className="primary" onClick={onClose}>LOCK IT IN →</button>
+    </section>
+  </div>;
+}
+
+const pauseMoves = [
+  { icon: "🫧", name: "AXO BUBBLES", line: "Slow in. Longer out. No rush." },
+  { icon: "🧱", name: "WALL POWER", line: "Push the wall with safe hands." },
+  { icon: "🕳️", name: "QUIET CAVE", line: "Less sound. Less talking. Just pause." },
+  { icon: "🧑", name: "GET MY GROWN-UP", line: "Go to your safe grown-up now. You do not have to explain first." },
+];
+
+function PausePortal({ onClose }: { onClose: () => void }) {
+  const [move, setMove] = useState<(typeof pauseMoves)[number] | null>(null);
+  useEffect(() => {
+    window.speechSynthesis?.cancel();
+    window.dispatchEvent(new Event("brave-blocks-pause"));
+  }, []);
+
+  const choose = (item: (typeof pauseMoves)[number]) => {
+    setMove(item);
+    if (item.name !== "QUIET CAVE") say(`${item.name}. ${item.line}`);
+    else window.speechSynthesis?.cancel();
+  };
+
+  return <div className="portal-screen pause-screen" role="dialog" aria-modal="true" aria-label="Pause Portal">
+    <section className="portal-card pause-card">
+      <button className="portal-close" onClick={onClose} aria-label="Close Pause Portal">×</button>
+      <span className="portal-icon">⏸️</span>
+      <small>PAUSE PORTAL UNLOCKED</small>
+      <h2>NO EXPLAINING NEEDED</h2>
+      <p>Pick one. Point to one. Or just hang here.</p>
+      <div className="pause-grid">
+        {pauseMoves.map((item) => <button className={move?.name === item.name ? "pause-move active" : "pause-move"} key={item.name} onClick={() => choose(item)}>
+          <span>{item.icon}</span><strong>{item.name}</strong><small>{item.line}</small>
+        </button>)}
+      </div>
+      {move && <div className="pause-result"><span>{move.icon}</span><div><strong>{move.name}</strong><p>{move.line}</p></div></div>}
+      <button className="primary" onClick={onClose}>I’M READY / GO BACK →</button>
+    </section>
+  </div>;
+}
+
 function Home({
   go, avatar, setAvatar, xp, collection, claimed, claimBonus, installApp,
 }: {
@@ -163,6 +310,7 @@ function Home({
     { id: "feelings" as Quest, icon: "🧪", title: "Vibe Mixer", text: "Mix feeling energy", color: "yellow", tag: "COMBO MODE" },
     { id: "body" as Quest, icon: "📡", title: "Body Radar", text: "Scan secret clues", color: "blue", tag: "SCANNER MODE" },
     { id: "calm" as Quest, icon: "🐉", title: "Dragon Battle", text: "Charge your shield", color: "purple", tag: "BOSS MODE" },
+    { id: "loadout" as Quest, icon: "🎒", title: "Meeting Loadout", text: "Pack choices + power words", color: "gold", tag: "PREP MODE" },
     { id: "meeting" as Quest, icon: "🛡️", title: "Talk Power-Up", text: "Choose your move", color: "orange", tag: "ROLE-PLAY MODE" },
     { id: "base" as Quest, icon: "🏰", title: "Build Mode", text: "Stack your squad", color: "green", tag: "CREATIVE MODE" },
     { id: "safety" as Quest, icon: "👐", title: "Safety Power-Ups", text: "Give your body a mission", color: "red", tag: "GENTLE MODE" },
@@ -233,6 +381,7 @@ function Home({
 
 function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
   const [picked, setPicked] = useState<string[]>([]);
+  const [axoMove, setAxoMove] = useState("");
   const toggle = (name: string, clue: string) => {
     playSound("tap", muted);
     say(`${name}. ${clue}.`);
@@ -248,7 +397,20 @@ function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
         <span>{f.face}</span><strong>{f.name}</strong><small>{f.clue}</small><i>{picked.includes(f.name) ? "IN THE MIX ✓" : "ADD +"}</i>
       </button>)}
     </div>
-    {picked.length > 0 && <div className="quest-result"><span className="big">🔥</span><div><strong>That mix is valid. Huge W.</strong><p>Opposite feelings can team up. Nothing weird about it.</p></div><button onClick={earn}>CRAFT LOOT →</button></div>}
+    <div className="axo-buddy">
+      <div className={picked.length > 1 ? "axo-avatar rainbow" : "axo-avatar"}>🦎</div>
+      <div className="axo-copy">
+        <small>AXO MAXXO’S VIBE CHECK</small>
+        <h3>{picked.length ? `${picked.join(" + ")} CAN ALL BE HERE` : "NO VIBE HAS TO BE PICKED"}</h3>
+        <p>{picked.length ? "Nothing to fix. Want wiggle energy or cozy energy?" : "Tap a feeling, point at one, or pass. Still a W."}</p>
+        <div>
+          <button className={axoMove === "wiggle" ? "active" : ""} onClick={() => { setAxoMove("wiggle"); playSound("tap", muted); say("Wiggle mode. Shake, then freeze."); }}>🕺 WIGGLE</button>
+          <button className={axoMove === "cozy" ? "active" : ""} onClick={() => { setAxoMove("cozy"); playSound("open", muted); say("Cozy mode. Hold something soft."); }}>🧸 COZY</button>
+          <button className={axoMove === "pass" ? "active" : ""} onClick={() => { setAxoMove("pass"); say("Pass unlocked. No explaining needed."); }}>⏭️ PASS</button>
+        </div>
+      </div>
+    </div>
+    {(picked.length > 0 || axoMove) && <div className="quest-result"><span className="big">{picked.length ? "🔥" : "⏭️"}</span><div><strong>{picked.length ? "That mix is valid. Huge W." : "You made a choice. Huge W."}</strong><p>{picked.length ? "Opposite feelings can team up. Nothing weird about it." : "Passing, wiggling, or getting cozy all count."}</p></div><button onClick={earn}>CRAFT LOOT →</button></div>}
   </QuestShell>;
 }
 
@@ -306,6 +468,175 @@ function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   </QuestShell>;
 }
 
+function SlimeDoodle() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
+  const [color, setColor] = useState("#a9ff55");
+
+  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const bounds = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
+      y: (event.clientY - bounds.top) * (canvas.height / bounds.height),
+    };
+  };
+  const begin = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    drawingRef.current = true;
+    const next = point(event);
+    context.beginPath();
+    context.moveTo(next.x, next.y);
+  };
+  const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    const context = canvasRef.current?.getContext("2d");
+    if (!context) return;
+    event.preventDefault();
+    const next = point(event);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.lineWidth = 28;
+    context.strokeStyle = color;
+    context.lineTo(next.x, next.y);
+    context.stroke();
+  };
+  const finish = () => {
+    drawingRef.current = false;
+  };
+  const clear = () => {
+    const canvas = canvasRef.current;
+    canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  return <div className="slime-doodle">
+    <div className="slime-tools">
+      <strong>DRAW THE VIBE</strong>
+      <div>{["#a9ff55", "#ff58c8", "#4de8ff", "#ffe04b", "#9c72ff"].map((item) => <button aria-label={`Use ${item} slime`} className={color === item ? "active" : ""} style={{ background: item }} key={item} onClick={() => setColor(item)} />)}</div>
+      <button className="slime-clear" onClick={clear}>🧽 CLEAR</button>
+    </div>
+    <canvas
+      ref={canvasRef}
+      width={900}
+      height={300}
+      onPointerDown={begin}
+      onPointerMove={draw}
+      onPointerUp={finish}
+      onPointerCancel={finish}
+      onPointerLeave={finish}
+      aria-label="Slime drawing pad. Draw any shape or feeling."
+    />
+    <p>Draw anything. It does not save or send.</p>
+  </div>;
+}
+
+function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const groups = [
+    {
+      id: "comfort",
+      title: "PACK A COZY",
+      options: [{ icon: "🧸", label: "Soft thing" }, { icon: "🟢", label: "Slime" }, { icon: "🎧", label: "Headphones" }, { icon: "🥤", label: "Drink" }],
+    },
+    {
+      id: "spot",
+      title: "PICK A SPOT",
+      options: [{ icon: "🚪", label: "Near door" }, { icon: "🪑", label: "My chair" }, { icon: "💚", label: "Near my person" }, { icon: "↔️", label: "More space" }],
+    },
+    {
+      id: "signal",
+      title: "PICK A SIGNAL",
+      options: [{ icon: "✋", label: "Hand up" }, { icon: "🟨", label: "Yellow card" }, { icon: "⏸️", label: "Say pause" }, { icon: "👀", label: "Look at my person" }],
+    },
+  ];
+  const people = [
+    {
+      icon: "⚖️",
+      name: "ATTORNEY",
+      line: "My job is to listen and explain my role. Ask me what I keep private and what I may share.",
+    },
+    {
+      icon: "🧑‍💼",
+      name: "SOCIAL WORKER",
+      line: "My job is to check how things are going. Ask me what I write down or share.",
+    },
+  ];
+  const modes = [
+    { id: "say", icon: "🗣️", label: "SAY IT" },
+    { id: "point", icon: "👉", label: "POINT" },
+    { id: "draw", icon: "🎨", label: "DRAW" },
+    { id: "pass", icon: "⏭️", label: "PASS" },
+  ] as const;
+  const landingMoves = [
+    { icon: "🥟", label: "Snack" }, { icon: "🎵", label: "Music" }, { icon: "🧸", label: "Cozy" }, { icon: "💃", label: "Move" }, { icon: "🙏", label: "Prayer" },
+  ];
+  const [picks, setPicks] = useState<Record<string, string>>({});
+  const [mode, setMode] = useState<(typeof modes)[number]["id"] | null>(null);
+  const [practice, setPractice] = useState("");
+  const [landing, setLanding] = useState("");
+  const ready = Object.keys(picks).length >= 2 && Boolean(mode);
+
+  const choosePack = (group: string, label: string) => {
+    playSound("tap", muted);
+    say(label);
+    setPicks((items) => ({ ...items, [group]: label }));
+  };
+
+  return <QuestShell title="Meeting Loadout" subtitle="Pack choices. Keep your own words." icon="🎒">
+    <div className="loadout-rule"><span>🛡️</span><div><small>PLAYER RULE</small><h2>YOU CAN SAY IT, POINT, DRAW, OR PASS.</h2><p>No guessing. No choosing sides. No answer earns more points than another.</p></div></div>
+
+    <section className="npc-intros">
+      <div className="mini-title"><small>MEET THE NPCs</small><h3>Ask what their job means</h3></div>
+      <div className="npc-intro-grid">{people.map((person) => <article key={person.name}>
+        <span>{person.icon}</span><div><strong>{person.name}</strong><p>{person.line}</p><button onClick={() => say(`${person.name}. ${person.line}`)}>🔊 HEAR INTRO</button></div>
+      </article>)}</div>
+      <p className="pro-script-note">Grown-up note: these are placeholders. Each professional should approve their own role and privacy wording.</p>
+    </section>
+
+    <section className="loadout-builder">
+      <div className="mini-title"><small>GEAR UP</small><h3>Pick what could help</h3></div>
+      {groups.map((group) => <div className="loadout-row" key={group.id}>
+        <strong>{group.title}</strong>
+        <div>{group.options.map((item) => <button className={picks[group.id] === item.label ? "active" : ""} key={item.label} onClick={() => choosePack(group.id, item.label)}>
+          <span>{item.icon}</span><b>{item.label}</b>
+        </button>)}</div>
+      </div>)}
+    </section>
+
+    <section className="choice-portal">
+      <div className="mini-title"><small>COMMUNICATION PORTAL</small><h3>How do you want to answer?</h3></div>
+      <div className="mode-grid">{modes.map((item) => <button className={mode === item.id ? "active" : ""} key={item.id} onClick={() => { setMode(item.id); playSound("open", muted); say(`${item.label} unlocked.`); }}>
+        <span>{item.icon}</span><strong>{item.label}</strong>
+      </button>)}</div>
+      {mode === "say" && <div className="power-phrases">{meetingMoves.slice(1).map((item) => <button className={practice === item.words ? "active" : ""} key={item.words} onClick={() => { setPractice(item.words); say(item.words); }}><span>{item.icon}</span><strong>{item.words}</strong></button>)}</div>}
+      {mode === "point" && <div className="point-board">{feelings.map((item) => <button className={practice === item.name ? "active" : ""} key={item.name} onClick={() => { setPractice(item.name); say(item.name); }}><span>{item.face}</span><strong>{item.name}</strong></button>)}</div>}
+      {mode === "draw" && <SlimeDoodle />}
+      {mode === "pass" && <div className="pass-card"><span>⏭️</span><div><strong>PASS IS A REAL CHOICE</strong><p>“I want to pass for now.” You can come back later—or not.</p><button onClick={() => say("I want to pass for now.")}>🔊 HEAR THE WORDS</button></div></div>}
+    </section>
+
+    <section className="meeting-map">
+      <div><span>1</span><b>FIRST</b><strong>👋 Hello</strong></div>
+      <i>→</i>
+      <div><span>2</span><b>THEN</b><strong>💬 Talk, point, draw, or pass</strong></div>
+      <i>→</i>
+      <div><span>3</span><b>AFTER</b><strong>{landing ? `${landingMoves.find((item) => item.label === landing)?.icon} ${landing}` : "🏠 Home Base"}</strong></div>
+    </section>
+
+    <section className="landing-pad">
+      <div className="mini-title"><small>AFTER-MEETING LANDING PAD</small><h3>What might your body want?</h3></div>
+      <div>{landingMoves.map((item) => <button className={landing === item.label ? "active" : ""} key={item.label} onClick={() => { setLanding(item.label); say(`${item.label} landing pad.`); }}><span>{item.icon}</span><strong>{item.label}</strong></button>)}</div>
+      <p>You still get care and connection after any answer—or no answer.</p>
+    </section>
+
+    {ready && <div className="loadout-ready"><span>🎒✨</span><div><strong>LOADOUT READY</strong><p>You practiced making choices. That is the W.</p></div><button className="primary" onClick={earn}>CLAIM LOADOUT LOOT →</button></div>}
+    <p className="loadout-privacy">🔐 Nothing picked, pointed to, or drawn here is saved or sent.</p>
+  </QuestShell>;
+}
+
 function MeetingQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   const [round, setRound] = useState(0);
   const [played, setPlayed] = useState(false);
@@ -340,6 +671,15 @@ function MeetingQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
 
 function BaseQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   const [blocks, setBlocks] = useState<string[]>([]);
+  const [coOpPrompt, setCoOpPrompt] = useState("Tap for a two-player mission.");
+  const [coOpTurn, setCoOpTurn] = useState("PLAYER");
+  const coOpMissions = [
+    "Make a feeling face. The other player guesses.",
+    "Each player picks one safe move to try.",
+    "Build a tiny blanket or pillow base together.",
+    "Take turns saying one thing that helps on a hard day.",
+    "Do a ten-second freeze dance, then both get cozy.",
+  ];
   const toggle = (label: string) => {
     playSound("open", muted); say(label);
     setBlocks((b) => b.includes(label) ? b.filter((x) => x !== label) : b.length < 5 ? [...b, label] : b);
@@ -356,6 +696,20 @@ function BaseQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
       })}</div>
       <p className="love-note">💚 I am loved. Easy days. Hard days. Every day.</p>
       {blocks.length >= 2 && <button className="primary" onClick={earn}>SAVE THE BASE · GET LOOT →</button>}
+    </div>
+    <div className="co-op-card">
+      <span>🤝</span>
+      <div><small>HOME-BASE CO-OP</small><h3>{coOpTurn} TURN</h3><p>{coOpPrompt}</p></div>
+      <div className="co-op-actions">
+        <button onClick={() => { setCoOpTurn("PLAYER"); say("Player turn."); }}>🧒 MY TURN</button>
+        <button onClick={() => { setCoOpTurn("GROWN-UP"); say("Grown-up turn."); }}>🧑 GROWN-UP</button>
+        <button onClick={() => {
+          const next = coOpMissions[Math.floor(Math.random() * coOpMissions.length)];
+          setCoOpPrompt(next);
+          playSound("open", muted);
+          say(next);
+        }}>🎲 NEW MISSION</button>
+      </div>
     </div>
   </QuestShell>;
 }
@@ -518,7 +872,14 @@ function BeatQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
     beatRef.current = state;
     setPlaying(true);
   };
-  useEffect(() => () => stopBeat(), []);
+  useEffect(() => {
+    const pauseBeat = () => stopBeat();
+    window.addEventListener("brave-blocks-pause", pauseBeat);
+    return () => {
+      window.removeEventListener("brave-blocks-pause", pauseBeat);
+      stopBeat();
+    };
+  }, []);
 
   const pads = [
     { icon: "🦎", name: "AXO", words: "Axo Maxxo, glow on patrol!", note: 523 },
@@ -617,6 +978,8 @@ function GrownupGuide() {
         <li>Does the language feel neutral, concrete, and right for an early reader?</li>
         <li>Could any activity feel leading, activating, or too close to a forensic interview?</li>
         <li>Which coping choices match the child’s existing safety and regulation plans?</li>
+        <li>Should the Pause Portal or Meeting Loadout choices be renamed for this child?</li>
+        <li>Can each professional approve the wording that describes their role and privacy limits?</li>
         <li>What should be added, simplified, or removed before the child uses it?</li>
       </ul>
       <p>Please share observations with the caregiver outside this game. This preview does not collect responses.</p>
@@ -632,6 +995,8 @@ function GrownupGuide() {
       <article><span>🎵</span><h3>Familiar music</h3><p>The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play.</p></article>
       <article><span>👐</span><h3>Safe, not suppressed</h3><p>Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.</p></article>
       <article><span>🛡️</span><h3>Safety plan</h3><p>If anyone is in immediate danger, move people and unsafe objects apart, get help, and follow the safety plan made with his clinician or pediatrician.</p></article>
+      <article><span>🎙️</span><h3>Original voices only</h3><p>The narrator packs change pacing and tone using voices available on the device. They do not imitate a celebrity, artist, influencer, or copyrighted character.</p></article>
+      <article><span>⏭️</span><h3>Passing still counts</h3><p>Reward practicing a choice—not disclosure, agreement, or a particular feeling. “Pass” should remain a complete and respected response.</p></article>
     </div>
     <div className="professional-note"><strong>Important:</strong> Brave Blocks supports play and practice. It is not therapy, a forensic interview, or legal advice.</div>
   </QuestShell>;
@@ -655,8 +1020,12 @@ export default function HomePage() {
   const [claimed, setClaimed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [showPause, setShowPause] = useState(false);
+  const [showVoiceLab, setShowVoiceLab] = useState(false);
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>("glorp");
 
   useEffect(() => {
+    equipNarrator(voiceMode);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register(`${PUBLIC_BASE}/sw.js`).catch(() => undefined);
     const capturePrompt = (event: Event) => {
       event.preventDefault();
@@ -664,14 +1033,15 @@ export default function HomePage() {
     };
     window.addEventListener("beforeinstallprompt", capturePrompt);
     return () => window.removeEventListener("beforeinstallprompt", capturePrompt);
-  }, []);
+  }, [voiceMode]);
 
-  const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Glorp Record", faith: "Hope Gem", grownups: "" };
+  const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", loadout: "Choice Pack", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Glorp Record", faith: "Hope Gem", grownups: "" };
   const pageWords: Record<Quest, string> = {
     home: "Welcome back, player. Pick your character. Then pick your next W.",
     feelings: "Vibe Mixer. Tap every feeling in your mix.",
     body: "Body Radar. Tap a place. Then scan a clue.",
     calm: "Dragon Battle. Slow breaths power your shield.",
+    loadout: "Meeting Loadout. Pack a cozy, choose a signal, and pick how you want to answer.",
     meeting: "Talk Power Up. Pick any words that tell the grown-up what you need.",
     base: "Build Mode. Tap your support blocks.",
     safety: "Safety Power Ups. Pick a safe mission for your hands, body, words, and repairs.",
@@ -718,6 +1088,7 @@ export default function HomePage() {
   if (quest === "feelings") content = <Feelings earn={earn} muted={muted} />;
   else if (quest === "body") content = <BodyQuest earn={earn} muted={muted} />;
   else if (quest === "calm") content = <CalmQuest earn={earn} muted={muted} />;
+  else if (quest === "loadout") content = <MeetingLoadout earn={earn} muted={muted} />;
   else if (quest === "meeting") content = <MeetingQuest earn={earn} muted={muted} />;
   else if (quest === "base") content = <BaseQuest earn={earn} muted={muted} />;
   else if (quest === "safety") content = <SafetyQuest earn={earn} muted={muted} />;
@@ -730,9 +1101,10 @@ export default function HomePage() {
   return <main>
     <header>
       <button className="brand" onClick={() => go("home")} aria-label="Brave Blocks home"><span>{avatar}</span><strong>BRAVE<br />BLOCKS</strong></button>
-      <div className="game-stats"><XPBar xp={xp} /><div className="badge-bar">{[0,1,2,3,4,5,6,7].map((i) => <PixelHeart key={i} filled={i < badges.length} />)}</div></div>
+      <div className="game-stats"><XPBar xp={xp} /><div className="badge-bar">{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < badges.length} />)}</div></div>
       <div className="header-actions">
         <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}>{muted ? "🔇" : "🔊"}</button>
+        <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label={`Choose narrator. ${narratorModes[voiceMode].name} is equipped`}>{narratorModes[voiceMode].icon}<span>VOICE</span></button>
         <button className="listen-button" onClick={() => say(pageWords[quest])}>🔊 <span>READ</span></button>
         <button className="guide-button" onClick={() => go("grownups")}>🔑 <span>GROWN-UPS</span></button>
       </div>
@@ -742,6 +1114,9 @@ export default function HomePage() {
     {content}
     {loot && <Victory loot={loot} avatar={avatar} onClose={closeLoot} />}
     {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} />}
+    {showPause && <PausePortal onClose={() => setShowPause(false)} />}
+    {showVoiceLab && <VoiceLab mode={voiceMode} onChoose={setVoiceMode} onClose={() => setShowVoiceLab(false)} />}
+    <button className="pause-portal-button" onClick={() => setShowPause(true)}><span>⏸️</span><strong>PAUSE PORTAL</strong></button>
     <footer><span>♥</span><strong>ALL FEELINGS = VALID · NO CAP</strong><span>♥</span></footer>
   </main>;
 }
