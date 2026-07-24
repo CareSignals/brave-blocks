@@ -1117,7 +1117,7 @@ export default function HomePage() {
     {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
     {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
-    <button className="pause-portal-button" onClick={() => setShowPause(true)}><span><PixelIcon icon="⏸️" /></span><strong>PAUSE PORTAL</strong></button>
+    <button className="pause-portal-button" onClick={() => setShowPause(true)} aria-label="Open Pause Portal"><span><PixelIcon icon="⏸️" /></span><strong>PAUSE PORTAL</strong></button>
     <footer><span><PixelIcon icon="♥" /></span><strong>ALL FEELINGS = VALID · NO CAP</strong><span><PixelIcon icon="♥" /></span></footer>
   </main>;
 }

@@ -1499,3 +1499,60 @@ button,a{
   filter:drop-shadow(.08em .1em 0 rgba(8,10,41,.42));
 }
 .camp-crew{display:flex;justify-content:center;gap:.45em}
+
+/* MOBILE BOTTOM DOCK
+   Keep the safety control reachable without covering the privacy note or
+   forcing the footer message into an awkward wrap. */
+@media(max-width:760px){
+  .privacy-note{
+    padding:20px 18px 24px;
+    line-height:1.45;
+  }
+  .pause-portal-button{
+    right:12px;
+    bottom:calc(10px + env(safe-area-inset-bottom));
+    width:58px;
+    min-width:58px;
+    height:58px;
+    min-height:58px;
+    justify-content:center;
+    padding:0;
+    border-width:3px;
+    box-shadow:4px 4px 0 #090b2d,0 0 18px rgba(255,224,56,.42);
+  }
+  .pause-portal-button span{font-size:30px}
+  .pause-portal-button strong{
+    position:absolute;
+    width:1px;
+    height:1px;
+    padding:0;
+    margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+  }
+  footer{
+    display:grid;
+    grid-template-columns:18px minmax(0,1fr) 18px;
+    align-items:center;
+    gap:8px;
+    min-height:74px;
+    padding:15px 78px calc(15px + env(safe-area-inset-bottom)) 12px;
+  }
+  footer strong{
+    min-width:0;
+    font-size:10px;
+    line-height:1.35;
+    letter-spacing:.9px;
+    white-space:nowrap;
+  }
+  footer span{font-size:18px}
+}
+
+@media(max-width:350px){
+  footer strong{
+    white-space:normal;
+    text-wrap:balance;
+  }
+}
