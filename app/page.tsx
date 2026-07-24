@@ -378,6 +378,24 @@ function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   const [running, setRunning] = useState(false);
   const [step, setStep] = useState(0);
   const [won, setWon] = useState(false);
+  const breathLabel = running ? calmSteps[step].label : won ? "MAX POWER" : "READY?";
+  const dragonPhase = !running
+    ? won ? "winner" : "rest"
+    : breathLabel === "BREATHE IN"
+      ? "inhale"
+      : breathLabel === "HOLD"
+        ? "hold"
+        : breathLabel === "BLOW OUT"
+          ? "exhale"
+          : "reset";
+  const dragonCue = {
+    rest: "BELLY READY",
+    inhale: "BELLY GROWS",
+    hold: "KEEP IT BIG",
+    exhale: "BELLY GETS SMALL",
+    reset: "REST + RESET",
+    winner: "DRAGON CHILL UNLOCKED",
+  }[dragonPhase];
 
   useEffect(() => {
     if (!running) return;
@@ -394,8 +412,19 @@ function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   return <QuestShell title="Dragon Battle" subtitle="Slow breath = max shield power." icon="🐉">
     <div className={`breath-world ${running ? "breathing" : ""} ${won ? "won" : ""}`}>
       <div className="battle-hud"><span>DRAGON BOSS</span><div><i style={{ width: won ? "0%" : `${100 - (step / calmSteps.length) * 100}%` }} /></div></div>
-      <div className="dragon">🐲<i>🔥</i></div>
-      <div className="breath-orb"><span>{running ? calmSteps[step].label : won ? "MAX POWER" : "READY?"}</span></div>
+      <div className={`dragon breathing-dragon phase-${dragonPhase}`} role="img" aria-label={`Friendly block dragon: ${dragonCue.toLowerCase()}`}>
+        <span className="dragon-air dragon-air-in" aria-hidden="true">💨→</span>
+        <span className="dragon-face" aria-hidden="true">🐲</span>
+        <div className="dragon-body" aria-hidden="true">
+          <span className="dragon-wing left">◢</span>
+          <span className="dragon-belly"><b>✦</b><em /><em /><em /></span>
+          <span className="dragon-wing right">◣</span>
+        </div>
+        <span className="dragon-feet" aria-hidden="true">▰　▰</span>
+        <span className="dragon-air dragon-air-out" aria-hidden="true">🔥→</span>
+        <strong className="dragon-cue" aria-live="polite">{dragonCue}</strong>
+      </div>
+      <div className="breath-orb"><span>{breathLabel}</span></div>
       <div className="shield-charge"><span>SHIELD</span>{[0,1,2,3].map((x) => <i className={won || step > x * 2 ? "charged" : ""} key={x}>◆</i>)}</div>
       <button className="primary" disabled={running} onClick={start}>{running ? "LOCKED IN..." : won ? "REMATCH 🔁" : "START BOSS BATTLE"}</button>
       {won && <button className="secondary" onClick={earn}>CLAIM BOSS LOOT →</button>}
