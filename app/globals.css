@@ -1469,3 +1469,33 @@ button,a{
   max-width:950px;
 }
 .quest-card:last-child{grid-column:auto}
+
+/* DEVICE-INDEPENDENT PIXEL SPRITES
+   Every pictographic icon is a bundled 20px sprite, enlarged with hard
+   nearest-neighbor edges so Fire tablets, phones, and laptops match. */
+.pixel-icon{
+  display:inline-block;
+  width:1em;
+  height:1em;
+  object-fit:contain;
+  vertical-align:-.14em;
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  filter:drop-shadow(.07em .09em 0 rgba(8,10,41,.28));
+  user-select:none;
+  pointer-events:none;
+}
+.heart .pixel-icon{filter:grayscale(1);opacity:.28}
+.heart.filled .pixel-icon{filter:drop-shadow(0 0 .25em #ff57c7);opacity:1}
+.quest-icon .pixel-icon,
+.victory-avatar .pixel-icon,
+.loot-drop .pixel-icon,
+.dragon-face .pixel-icon,
+.axo-avatar .pixel-icon,
+.runner .pixel-icon,
+.dj>.pixel-icon,
+.fire .pixel-icon{
+  image-rendering:pixelated;
+  filter:drop-shadow(.08em .1em 0 rgba(8,10,41,.42));
+}
+.camp-crew{display:flex;justify-content:center;gap:.45em}

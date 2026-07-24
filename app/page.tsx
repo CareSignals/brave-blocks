@@ -11,6 +11,10 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 const PUBLIC_BASE = "/brave-blocks";
+const emojiSegmenter = typeof Intl !== "undefined" && "Segmenter" in Intl
+  ? new Intl.Segmenter("en", { granularity: "grapheme" })
+  : null;
+const pictograph = /\p{Extended_Pictographic}/u;
 
 const avatars = [
   { icon: "🦎", name: "Axo Maxxo" },
@@ -147,13 +151,42 @@ function playSound(kind: "tap" | "win" | "open", muted: boolean) {
   window.setTimeout(() => audio.close(), 700);
 }
 
+function pixelIconName(icon: string) {
+  return Array.from(icon)
+    .map((character) => character.codePointAt(0)?.toString(16))
+    .filter((codePoint) => codePoint && codePoint !== "fe0f")
+    .join("-");
+}
+
+function PixelIcon({ icon, label, className = "" }: { icon: string; label?: string; className?: string }) {
+  return <Image
+    className={`pixel-icon ${className}`.trim()}
+    src={`${PUBLIC_BASE}/pixel-icons/${pixelIconName(icon)}.png`}
+    width={20}
+    height={20}
+    unoptimized
+    alt={label ?? ""}
+    aria-hidden={label ? undefined : true}
+    draggable={false}
+  />;
+}
+
+function PixelText({ text }: { text: string }) {
+  const parts = emojiSegmenter
+    ? Array.from(emojiSegmenter.segment(text), ({ segment }) => segment)
+    : [text];
+  return <>{parts.map((part, index) => pictograph.test(part)
+    ? <PixelIcon icon={part} key={`${part}-${index}`} />
+    : part)}</>;
+}
+
 function PixelHeart({ filled }: { filled: boolean }) {
-  return <span className={filled ? "heart filled" : "heart"} aria-hidden="true">♥</span>;
+  return <span className={filled ? "heart filled" : "heart"} aria-hidden="true"><PixelIcon icon="♥" /></span>;
 }
 
 function XPBar({ xp }: { xp: number }) {
   return <div className="xp-wrap" aria-label={`${xp} brave experience points`}>
-    <span>⚡ {xp} XP</span>
+    <span><PixelIcon icon="⚡" /> {xp} XP</span>
     <div className="xp-track"><i style={{ width: `${Math.min(100, xp / 5)}%` }} /></div>
   </div>;
 }
@@ -162,11 +195,11 @@ function Victory({ loot, avatar, onClose }: { loot: Loot; avatar: string; onClos
   return <div className="victory-screen" role="dialog" aria-modal="true" aria-label="Quest complete">
     <div className="confetti" aria-hidden="true">{["■","●","▲","★","■","●","▲","★","■","●","▲","★"].map((x, i) => <i key={i}>{x}</i>)}</div>
     <div className="loot-card">
-      <span className="victory-avatar">{avatar}</span>
+      <span className="victory-avatar"><PixelIcon icon={avatar} /></span>
       <small>QUEST W · +100 XP</small>
       <h2>YOU COOKED!</h2>
       <p>Rare loot unlocked:</p>
-      <div className="loot-drop"><span>{loot.icon}</span><strong>{loot.name}</strong><em>{loot.line}</em></div>
+      <div className="loot-drop"><span><PixelIcon icon={loot.icon} /></span><strong>{loot.name}</strong><em>{loot.line}</em></div>
       <button onClick={onClose}>EQUIP + KEEP PLAYING →</button>
     </div>
   </div>;
@@ -177,14 +210,14 @@ function VoiceLab({ onClose }: { onClose: () => void }) {
     <section className="portal-card voice-lab">
       <button className="portal-close" onClick={onClose} aria-label="Close narrator choices">×</button>
       <small>ORIGINAL VOICE PACK</small>
-      <h2>🎙️ QUEST HOST ONLINE</h2>
+      <h2><PixelIcon icon="🎙️" /> QUEST HOST ONLINE</h2>
       <p>This original gaming-adventure narrator is prerecorded, so it sounds the same on the phone, computer, and Fire tablet.</p>
       <div className="voice-grid single">
         <button className="voice-card active" onClick={() => say(NARRATOR_SAMPLE)}>
-          <span>🎮</span><strong>MOSES GAMER YOUTUBER</strong><small>Playful Minecraft quest energy + gentle support</small><i>🔊 TAP TO HEAR</i>
+          <span><PixelIcon icon="🎮" /></span><strong>MOSES GAMER YOUTUBER</strong><small>Playful Minecraft quest energy + gentle support</small><i><PixelIcon icon="🔊" /> TAP TO HEAR</i>
         </button>
       </div>
-      <div className="voice-note"><strong>🔐 PRIVATE BY DESIGN</strong><p>The voice is already inside the game. Moses’s taps and choices are never sent to a voice service.</p></div>
+      <div className="voice-note"><strong><PixelIcon icon="🔐" /> PRIVATE BY DESIGN</strong><p>The voice is already inside the game. Moses’s taps and choices are never sent to a voice service.</p></div>
       <p className="device-voice-note">No robotic phone or tablet voice. No celebrity, influencer, or character imitation.</p>
       <button className="primary" onClick={onClose}>LOCK IT IN →</button>
     </section>
@@ -214,16 +247,16 @@ function PausePortal({ onClose }: { onClose: () => void }) {
   return <div className="portal-screen pause-screen" role="dialog" aria-modal="true" aria-label="Pause Portal">
     <section className="portal-card pause-card">
       <button className="portal-close" onClick={onClose} aria-label="Close Pause Portal">×</button>
-      <span className="portal-icon">⏸️</span>
+      <span className="portal-icon"><PixelIcon icon="⏸️" /></span>
       <small>PAUSE PORTAL UNLOCKED</small>
       <h2>NO EXPLAINING NEEDED</h2>
       <p>Pick one. Point to one. Or just hang here.</p>
       <div className="pause-grid">
         {pauseMoves.map((item) => <button className={move?.name === item.name ? "pause-move active" : "pause-move"} key={item.name} onClick={() => choose(item)}>
-          <span>{item.icon}</span><strong>{item.name}</strong><small>{item.line}</small>
+          <span><PixelIcon icon={item.icon} /></span><strong>{item.name}</strong><small>{item.line}</small>
         </button>)}
       </div>
-      {move && <div className="pause-result"><span>{move.icon}</span><div><strong>{move.name}</strong><p>{move.line}</p></div></div>}
+      {move && <div className="pause-result"><span><PixelIcon icon={move.icon} /></span><div><strong>{move.name}</strong><p>{move.line}</p></div></div>}
       <button className="primary" onClick={onClose}>I’M READY / GO BACK →</button>
     </section>
   </div>;
@@ -266,12 +299,12 @@ function Home({
         alt="Brave Blocks voxel world with Axo Maxxo, Capy Bappy, Dumpling Supreme, DJ Glorp, a safe home, a campfire, and a music stage"
       />
       <div className="hero-status">
-        <span className="status-avatar">{avatar}</span>
+        <span className="status-avatar"><PixelIcon icon={avatar} /></span>
         <div><small>PLAYER HAS ENTERED THE WORLD</small><strong>CHOOSE A PLAYER · PICK A QUEST · GET THE W</strong></div>
         <span className="status-live">● SAFE BASE ONLINE</span>
       </div>
       <div className="promise key-art-promise">
-        <span>💚</span>
+        <span><PixelIcon icon="💚" /></span>
         <p><strong>HOME-BASE BUFF</strong><br />Loved. Not alone. Grown-up problems = not your fault.</p>
       </div>
     </section>
@@ -279,38 +312,38 @@ function Home({
     <section className="player-deck">
       <div>
         <small>CHOOSE YOUR PLAYER</small>
-        <div className="avatar-row">{avatars.map((a) => <button key={a.name} title={a.name} aria-label={`Choose ${a.name}`} className={avatar === a.icon ? "avatar-pick active" : "avatar-pick"} onClick={() => { playSound("tap", false); say(`${a.name} selected`); setAvatar(a.icon); }}>{a.icon}</button>)}</div>
+        <div className="avatar-row">{avatars.map((a) => <button key={a.name} title={a.name} aria-label={`Choose ${a.name}`} className={avatar === a.icon ? "avatar-pick active" : "avatar-pick"} onClick={() => { playSound("tap", false); say(`${a.name} selected`); setAvatar(a.icon); }}><PixelIcon icon={a.icon} /></button>)}</div>
       </div>
       <button className={claimed ? "mystery claimed" : "mystery"} onClick={claimBonus} disabled={claimed}>
-        <span>{claimed ? "✨" : "?"}</span>
+        <span>{claimed ? <PixelIcon icon="✨" /> : "?"}</span>
         <strong>{claimed ? "DAILY W CLAIMED" : "CRACK MYSTERY BLOCK"}</strong>
         <small>{claimed ? "+25 XP · huge" : "tap for surprise XP"}</small>
       </button>
-      <div className="mini-inventory"><small>YOUR LOOT</small><div>{collection.length ? collection.slice(-5).map((item, i) => <span title={item.name} key={`${item.name}-${i}`}>{item.icon}</span>) : <p>win a quest →</p>}</div></div>
+      <div className="mini-inventory"><small>YOUR LOOT</small><div>{collection.length ? collection.slice(-5).map((item, i) => <span title={item.name} key={`${item.name}-${i}`}><PixelIcon icon={item.icon} /></span>) : <p>win a quest →</p>}</div></div>
     </section>
 
     <section className="crew-section">
       <div className="crew-title"><small>THE CHAOS CREW</small><strong>Original weird little legends</strong></div>
       <div className="crew-grid">{chaosCrew.map((friend) => <button key={friend.name} className={`crew-card ${friend.color}`} onClick={() => { playSound("tap", false); say(`${friend.name}. ${friend.line}`); }}>
-        <span>{friend.icon}</span><div><strong>{friend.name}</strong><small>{friend.line}</small></div>
+        <span><PixelIcon icon={friend.icon} /></span><div><strong>{friend.name}</strong><small>{friend.line}</small></div>
       </button>)}</div>
     </section>
 
     <button className="install-banner" onClick={installApp}>
-      <span>📲</span><div><small>GROWN-UP SETUP</small><strong>PUT BRAVE BLOCKS ON THE FIRE TABLET</strong><em>app icon + full-screen play + basic offline support</em></div><b>SET UP →</b>
+      <span><PixelIcon icon="📲" /></span><div><small>GROWN-UP SETUP</small><strong>PUT BRAVE BLOCKS ON THE FIRE TABLET</strong><em>app icon + full-screen play + basic offline support</em></div><b>SET UP →</b>
     </button>
 
     <section className="quest-section">
       <div className="section-title"><span>✦</span><div><small>THE QUEST MAP</small><h2>Pick your next W</h2></div><span>✦</span></div>
       <div className="quest-grid">
         {quests.map((q) => <button className={`quest-card ${q.color}`} key={q.id} onClick={() => go(q.id)}>
-          <span className="quest-number">{q.tag}</span><span className="quest-icon">{q.icon}</span>
+          <span className="quest-number">{q.tag}</span><span className="quest-icon"><PixelIcon icon={q.icon} /></span>
           <strong>{q.title}</strong><span>{q.text}</span><em>LOCK IN →</em>
         </button>)}
       </div>
-      <p className="level-line">{xp >= 500 ? "🏆 MAX BRAVE AURA UNLOCKED" : `⚡ ${500 - Math.min(xp, 500)} XP TO MAX BRAVE AURA`}</p>
+      <p className="level-line"><PixelText text={xp >= 500 ? "🏆 MAX BRAVE AURA UNLOCKED" : `⚡ ${500 - Math.min(xp, 500)} XP TO MAX BRAVE AURA`} /></p>
     </section>
-    <p className="privacy-note">🔐 No saves. No sending. Your picks stay on this screen.</p>
+    <p className="privacy-note"><PixelIcon icon="🔐" /> No saves. No sending. Your picks stay on this screen.</p>
   </>;
 }
 
@@ -324,28 +357,28 @@ function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
   };
   return <QuestShell title="Vibe Mixer" subtitle="Tap your whole feeling squad." icon="🧪">
     <div className={`mixer ${picked.length > 1 ? "ultra" : ""}`}>
-      <div className="mixer-jar"><div>{picked.map((name) => <span key={name}>{feelings.find((f) => f.name === name)?.face}</span>)}</div></div>
-      <div><small>LIVE VIBE CHECK</small><h2>{picked.length === 0 ? "EMPTY MIX" : picked.length === 1 ? `${picked[0]} MODE` : `${picked.length}X COMBO!`}</h2><p>{picked.length > 1 ? "ULTRA RARE MIXED FEELINGS ✨" : "Choose what is here right now."}</p></div>
+      <div className="mixer-jar"><div>{picked.map((name) => <span key={name}><PixelIcon icon={feelings.find((f) => f.name === name)?.face ?? "🫨"} /></span>)}</div></div>
+      <div><small>LIVE VIBE CHECK</small><h2>{picked.length === 0 ? "EMPTY MIX" : picked.length === 1 ? `${picked[0]} MODE` : `${picked.length}X COMBO!`}</h2><p>{picked.length > 1 ? <PixelText text="ULTRA RARE MIXED FEELINGS ✨" /> : "Choose what is here right now."}</p></div>
     </div>
     <div className="feeling-grid">
       {feelings.map((f) => <button key={f.name} onClick={() => toggle(f.name, f.clue)} className={`feeling-block ${picked.includes(f.name) ? "selected" : ""}`} style={{ "--block": f.color } as React.CSSProperties}>
-        <span>{f.face}</span><strong>{f.name}</strong><small>{f.clue}</small><i>{picked.includes(f.name) ? "IN THE MIX ✓" : "ADD +"}</i>
+        <span><PixelIcon icon={f.face} /></span><strong>{f.name}</strong><small>{f.clue}</small><i>{picked.includes(f.name) ? "IN THE MIX ✓" : "ADD +"}</i>
       </button>)}
     </div>
     <div className="axo-buddy">
-      <div className={picked.length > 1 ? "axo-avatar rainbow" : "axo-avatar"}>🦎</div>
+      <div className={picked.length > 1 ? "axo-avatar rainbow" : "axo-avatar"}><PixelIcon icon="🦎" /></div>
       <div className="axo-copy">
         <small>AXO MAXXO’S VIBE CHECK</small>
         <h3>{picked.length ? `${picked.join(" + ")} CAN ALL BE HERE` : "NO VIBE HAS TO BE PICKED"}</h3>
         <p>{picked.length ? "Nothing to fix. Want wiggle energy or cozy energy?" : "Tap a feeling, point at one, or pass. Still a W."}</p>
         <div>
-          <button className={axoMove === "wiggle" ? "active" : ""} onClick={() => { setAxoMove("wiggle"); playSound("tap", muted); say("Wiggle mode. Shake, then freeze."); }}>🕺 WIGGLE</button>
-          <button className={axoMove === "cozy" ? "active" : ""} onClick={() => { setAxoMove("cozy"); playSound("open", muted); say("Cozy mode. Hold something soft."); }}>🧸 COZY</button>
-          <button className={axoMove === "pass" ? "active" : ""} onClick={() => { setAxoMove("pass"); say("Pass unlocked. No explaining needed."); }}>⏭️ PASS</button>
+          <button className={axoMove === "wiggle" ? "active" : ""} onClick={() => { setAxoMove("wiggle"); playSound("tap", muted); say("Wiggle mode. Shake, then freeze."); }}><PixelIcon icon="🕺" /> WIGGLE</button>
+          <button className={axoMove === "cozy" ? "active" : ""} onClick={() => { setAxoMove("cozy"); playSound("open", muted); say("Cozy mode. Hold something soft."); }}><PixelIcon icon="🧸" /> COZY</button>
+          <button className={axoMove === "pass" ? "active" : ""} onClick={() => { setAxoMove("pass"); say("Pass unlocked. No explaining needed."); }}><PixelIcon icon="⏭️" /> PASS</button>
         </div>
       </div>
     </div>
-    {(picked.length > 0 || axoMove) && <div className="quest-result"><span className="big">{picked.length ? "🔥" : "⏭️"}</span><div><strong>{picked.length ? "That mix is valid. Huge W." : "You made a choice. Huge W."}</strong><p>{picked.length ? "Opposite feelings can team up. Nothing weird about it." : "Passing, wiggling, or getting cozy all count."}</p></div><button onClick={earn}>CRAFT LOOT →</button></div>}
+    {(picked.length > 0 || axoMove) && <div className="quest-result"><span className="big"><PixelIcon icon={picked.length ? "🔥" : "⏭️"} /></span><div><strong>{picked.length ? "That mix is valid. Huge W." : "You made a choice. Huge W."}</strong><p>{picked.length ? "Opposite feelings can team up. Nothing weird about it." : "Passing, wiggling, or getting cozy all count."}</p></div><button onClick={earn}>CRAFT LOOT →</button></div>}
   </QuestShell>;
 }
 
@@ -362,13 +395,13 @@ function BodyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
     <div className="scanner-top"><span>RADAR POWER</span><div><i style={{ width: `${power}%` }} /></div><strong>{power}%</strong></div>
     <div className="body-layout">
       <div className={`block-person ${spot ? "scanning" : ""}`} aria-label="Body map">
-        <div className="scan-line" /><div className="bp-head">🙂</div><div className="bp-body">♥</div><div className="bp-arms">━　━</div><div className="bp-legs">▮　▮</div>
+        <div className="scan-line" /><div className="bp-head"><PixelIcon icon="🙂" /></div><div className="bp-body"><PixelIcon icon="♥" /></div><div className="bp-arms">━　━</div><div className="bp-legs">▮　▮</div>
       </div>
       <div className="spot-grid">
-        {bodySpots.map((s) => <button key={s.id} className={spot?.id === s.id ? "spot active" : "spot"} onClick={() => { playSound("tap", muted); say(s.label); setSpot(s); }}><span>{s.icon}</span>{s.label}</button>)}
+        {bodySpots.map((s) => <button key={s.id} className={spot?.id === s.id ? "spot active" : "spot"} onClick={() => { playSound("tap", muted); say(s.label); setSpot(s); }}><span><PixelIcon icon={s.icon} /></span>{s.label}</button>)}
       </div>
     </div>
-    {spot && <div className="sensation-panel"><h3>📡 WHAT’S THE CLUE?</h3><div>{spot.sensations.map((s) => <button key={s} className={found.includes(`${spot.label}: ${s}`) ? "chip chosen" : "chip"} onClick={() => scan(`${spot.label}: ${s}`)}>{s}</button>)}<button className="chip" onClick={() => scan(`${spot.label}: something else`)}>something else</button></div></div>}
+    {spot && <div className="sensation-panel"><h3><PixelIcon icon="📡" /> WHAT’S THE CLUE?</h3><div>{spot.sensations.map((s) => <button key={s} className={found.includes(`${spot.label}: ${s}`) ? "chip chosen" : "chip"} onClick={() => scan(`${spot.label}: ${s}`)}>{s}</button>)}<button className="chip" onClick={() => scan(`${spot.label}: something else`)}>something else</button></div></div>}
     {found.length > 0 && <div className="scan-log"><strong>CLUE LOG</strong>{found.map((x) => <span key={x}>✓ {x}</span>)}</div>}
     {found.length >= 2 && <button className="primary center" onClick={earn}>RADAR LOCKED IN · GET LOOT →</button>}
   </QuestShell>;
@@ -413,20 +446,20 @@ function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
     <div className={`breath-world ${running ? "breathing" : ""} ${won ? "won" : ""}`}>
       <div className="battle-hud"><span>DRAGON BOSS</span><div><i style={{ width: won ? "0%" : `${100 - (step / calmSteps.length) * 100}%` }} /></div></div>
       <div className={`dragon breathing-dragon phase-${dragonPhase}`} role="img" aria-label={`Friendly block dragon: ${dragonCue.toLowerCase()}`}>
-        <span className="dragon-air dragon-air-in" aria-hidden="true">💨→</span>
-        <span className="dragon-face" aria-hidden="true">🐲</span>
+        <span className="dragon-air dragon-air-in" aria-hidden="true"><PixelIcon icon="💨" />→</span>
+        <span className="dragon-face" aria-hidden="true"><PixelIcon icon="🐲" /></span>
         <div className="dragon-body" aria-hidden="true">
           <span className="dragon-wing left">◢</span>
           <span className="dragon-belly"><b>✦</b><em /><em /><em /></span>
           <span className="dragon-wing right">◣</span>
         </div>
         <span className="dragon-feet" aria-hidden="true">▰　▰</span>
-        <span className="dragon-air dragon-air-out" aria-hidden="true">🔥→</span>
+        <span className="dragon-air dragon-air-out" aria-hidden="true"><PixelIcon icon="🔥" />→</span>
         <strong className="dragon-cue" aria-live="polite">{dragonCue}</strong>
       </div>
       <div className="breath-orb"><span>{breathLabel}</span></div>
       <div className="shield-charge"><span>SHIELD</span>{[0,1,2,3].map((x) => <i className={won || step > x * 2 ? "charged" : ""} key={x}>◆</i>)}</div>
-      <button className="primary" disabled={running} onClick={start}>{running ? "LOCKED IN..." : won ? "REMATCH 🔁" : "START BOSS BATTLE"}</button>
+      <button className="primary" disabled={running} onClick={start}>{running ? "LOCKED IN..." : won ? <PixelText text="REMATCH 🔁" /> : "START BOSS BATTLE"}</button>
       {won && <button className="secondary" onClick={earn}>CLAIM BOSS LOOT →</button>}
     </div>
   </QuestShell>;
@@ -482,7 +515,7 @@ function SlimeDoodle() {
     <div className="slime-tools">
       <strong>DRAW THE VIBE</strong>
       <div>{["#a9ff55", "#ff58c8", "#4de8ff", "#ffe04b", "#9c72ff"].map((item) => <button aria-label={`Use ${item} slime`} className={color === item ? "active" : ""} style={{ background: item }} key={item} onClick={() => setColor(item)} />)}</div>
-      <button className="slime-clear" onClick={clear}>🧽 CLEAR</button>
+      <button className="slime-clear" onClick={clear}><PixelIcon icon="🧽" /> CLEAR</button>
     </div>
     <canvas
       ref={canvasRef}
@@ -551,12 +584,12 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
   };
 
   return <QuestShell title="Meeting Loadout" subtitle="Pack choices. Keep your own words." icon="🎒">
-    <div className="loadout-rule"><span>🛡️</span><div><small>PLAYER RULE</small><h2>YOU CAN SAY IT, POINT, DRAW, OR PASS.</h2><p>No guessing. No choosing sides. No answer earns more points than another.</p></div></div>
+    <div className="loadout-rule"><span><PixelIcon icon="🛡️" /></span><div><small>PLAYER RULE</small><h2>YOU CAN SAY IT, POINT, DRAW, OR PASS.</h2><p>No guessing. No choosing sides. No answer earns more points than another.</p></div></div>
 
     <section className="npc-intros">
       <div className="mini-title"><small>MEET THE NPCs</small><h3>Ask what their job means</h3></div>
       <div className="npc-intro-grid">{people.map((person) => <article key={person.name}>
-        <span>{person.icon}</span><div><strong>{person.name}</strong><p>{person.line}</p><button onClick={() => say(`${person.name}. ${person.line}`)}>🔊 HEAR INTRO</button></div>
+        <span><PixelIcon icon={person.icon} /></span><div><strong>{person.name}</strong><p>{person.line}</p><button onClick={() => say(`${person.name}. ${person.line}`)}><PixelIcon icon="🔊" /> HEAR INTRO</button></div>
       </article>)}</div>
       <p className="pro-script-note">Grown-up note: these are placeholders. Each professional should approve their own role and privacy wording.</p>
     </section>
@@ -566,7 +599,7 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
       {groups.map((group) => <div className="loadout-row" key={group.id}>
         <strong>{group.title}</strong>
         <div>{group.options.map((item) => <button className={picks[group.id] === item.label ? "active" : ""} key={item.label} onClick={() => choosePack(group.id, item.label)}>
-          <span>{item.icon}</span><b>{item.label}</b>
+          <span><PixelIcon icon={item.icon} /></span><b>{item.label}</b>
         </button>)}</div>
       </div>)}
     </section>
@@ -574,30 +607,32 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
     <section className="choice-portal">
       <div className="mini-title"><small>COMMUNICATION PORTAL</small><h3>How do you want to answer?</h3></div>
       <div className="mode-grid">{modes.map((item) => <button className={mode === item.id ? "active" : ""} key={item.id} onClick={() => { setMode(item.id); playSound("open", muted); say(`${item.label} unlocked.`); }}>
-        <span>{item.icon}</span><strong>{item.label}</strong>
+        <span><PixelIcon icon={item.icon} /></span><strong>{item.label}</strong>
       </button>)}</div>
-      {mode === "say" && <div className="power-phrases">{meetingMoves.slice(1).map((item) => <button className={practice === item.words ? "active" : ""} key={item.words} onClick={() => { setPractice(item.words); say(item.words); }}><span>{item.icon}</span><strong>{item.words}</strong></button>)}</div>}
-      {mode === "point" && <div className="point-board">{feelings.map((item) => <button className={practice === item.name ? "active" : ""} key={item.name} onClick={() => { setPractice(item.name); say(item.name); }}><span>{item.face}</span><strong>{item.name}</strong></button>)}</div>}
+      {mode === "say" && <div className="power-phrases">{meetingMoves.slice(1).map((item) => <button className={practice === item.words ? "active" : ""} key={item.words} onClick={() => { setPractice(item.words); say(item.words); }}><span><PixelIcon icon={item.icon} /></span><strong>{item.words}</strong></button>)}</div>}
+      {mode === "point" && <div className="point-board">{feelings.map((item) => <button className={practice === item.name ? "active" : ""} key={item.name} onClick={() => { setPractice(item.name); say(item.name); }}><span><PixelIcon icon={item.face} /></span><strong>{item.name}</strong></button>)}</div>}
       {mode === "draw" && <SlimeDoodle />}
-      {mode === "pass" && <div className="pass-card"><span>⏭️</span><div><strong>PASS IS A REAL CHOICE</strong><p>“I want to pass for now.” You can come back later—or not.</p><button onClick={() => say("I want to pass for now.")}>🔊 HEAR THE WORDS</button></div></div>}
+      {mode === "pass" && <div className="pass-card"><span><PixelIcon icon="⏭️" /></span><div><strong>PASS IS A REAL CHOICE</strong><p>“I want to pass for now.” You can come back later—or not.</p><button onClick={() => say("I want to pass for now.")}><PixelIcon icon="🔊" /> HEAR THE WORDS</button></div></div>}
     </section>
 
     <section className="meeting-map">
-      <div><span>1</span><b>FIRST</b><strong>👋 Hello</strong></div>
+      <div><span>1</span><b>FIRST</b><strong><PixelIcon icon="👋" /> Hello</strong></div>
       <i>→</i>
-      <div><span>2</span><b>THEN</b><strong>💬 Talk, point, draw, or pass</strong></div>
+      <div><span>2</span><b>THEN</b><strong><PixelIcon icon="💬" /> Talk, point, draw, or pass</strong></div>
       <i>→</i>
-      <div><span>3</span><b>AFTER</b><strong>{landing ? `${landingMoves.find((item) => item.label === landing)?.icon} ${landing}` : "🏠 Home Base"}</strong></div>
+      <div><span>3</span><b>AFTER</b><strong>{landing
+        ? <><PixelIcon icon={landingMoves.find((item) => item.label === landing)?.icon ?? "🏠"} /> {landing}</>
+        : <><PixelIcon icon="🏠" /> Home Base</>}</strong></div>
     </section>
 
     <section className="landing-pad">
       <div className="mini-title"><small>AFTER-MEETING LANDING PAD</small><h3>What might your body want?</h3></div>
-      <div>{landingMoves.map((item) => <button className={landing === item.label ? "active" : ""} key={item.label} onClick={() => { setLanding(item.label); say(`${item.label} landing pad.`); }}><span>{item.icon}</span><strong>{item.label}</strong></button>)}</div>
+      <div>{landingMoves.map((item) => <button className={landing === item.label ? "active" : ""} key={item.label} onClick={() => { setLanding(item.label); say(`${item.label} landing pad.`); }}><span><PixelIcon icon={item.icon} /></span><strong>{item.label}</strong></button>)}</div>
       <p>You still get care and connection after any answer—or no answer.</p>
     </section>
 
-    {ready && <div className="loadout-ready"><span>🎒✨</span><div><strong>LOADOUT READY</strong><p>You practiced making choices. That is the W.</p></div><button className="primary" onClick={earn}>CLAIM LOADOUT LOOT →</button></div>}
-    <p className="loadout-privacy">🔐 Nothing picked, pointed to, or drawn here is saved or sent.</p>
+    {ready && <div className="loadout-ready"><span><PixelIcon icon="🎒" /><PixelIcon icon="✨" /></span><div><strong>LOADOUT READY</strong><p>You practiced making choices. That is the W.</p></div><button className="primary" onClick={earn}>CLAIM LOADOUT LOOT →</button></div>}
+    <p className="loadout-privacy"><PixelIcon icon="🔐" /> Nothing picked, pointed to, or drawn here is saved or sent.</p>
   </QuestShell>;
 }
 
@@ -618,18 +653,18 @@ function MeetingQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   return <QuestShell title="Talk Power-Up" subtitle="Boss-level meeting? Choose your move." icon="🛡️">
     <div className="meeting-game">
       <div className="npc-zone">
-        <div className="npc">{complete ? "🏆" : meetingRounds[round].icon}<i /></div>
+        <div className="npc"><PixelIcon icon={complete ? "🏆" : meetingRounds[round].icon} /><i /></div>
         <div className="speech-bubble">
           <small>{complete ? "MISSION COMPLETE" : `ROUND ${round + 1} / 3`}</small>
           <p>{complete ? "You practiced using your own words. Main-character energy." : meetingRounds[round].words}</p>
-          {!complete && <button onClick={() => say(meetingRounds[round].words)}>🔊 HEAR</button>}
+          {!complete && <button onClick={() => say(meetingRounds[round].words)}><PixelIcon icon="🔊" /> HEAR</button>}
         </div>
       </div>
-      {!complete && <div className="move-grid">{meetingMoves.map((m) => <button key={m.words} disabled={played} className={lastMove?.words === m.words ? "move active" : "move"} onClick={() => move(m)}><span>{m.icon}</span><strong>“{m.words}”</strong></button>)}</div>}
+      {!complete && <div className="move-grid">{meetingMoves.map((m) => <button key={m.words} disabled={played} className={lastMove?.words === m.words ? "move active" : "move"} onClick={() => move(m)}><span><PixelIcon icon={m.icon} /></span><strong>“{m.words}”</strong></button>)}</div>}
       {lastMove && <div className="move-win"><span>+1 BRAVE AURA</span><strong>“{lastMove.words}”</strong><p>{lastMove.tip} Your answer belongs to you.</p><button onClick={next}>{round === 2 ? "FINISH MISSION →" : "NEXT ROUND →"}</button></div>}
-      {complete && <div className="meeting-finish"><p>🛡️ You can tell the truth. You can say “I don’t know.” You can ask for a break. You never have to choose sides.</p><button className="primary" onClick={earn}>OPEN POWER LOOT →</button></div>}
+      {complete && <div className="meeting-finish"><p><PixelIcon icon="🛡️" /> You can tell the truth. You can say “I don’t know.” You can ask for a break. You never have to choose sides.</p><button className="primary" onClick={earn}>OPEN POWER LOOT →</button></div>}
     </div>
-    <div className="privacy-power"><span>🔒</span><p><strong>SMART MOVE:</strong> Ask each grown-up what they will keep private and what they may share.</p></div>
+    <div className="privacy-power"><span><PixelIcon icon="🔒" /></span><p><strong>SMART MOVE:</strong> Ask each grown-up what they will keep private and what they may share.</p></div>
   </QuestShell>;
 }
 
@@ -649,30 +684,30 @@ function BaseQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
     setBlocks((b) => b.includes(label) ? b.filter((x) => x !== label) : b.length < 5 ? [...b, label] : b);
   };
   return <QuestShell title="Build Mode" subtitle="Stack your support squad." icon="🏰">
-    <div className="build-hud"><span>BLOCKS PLACED: {blocks.length}/5</span><strong>{blocks.length >= 3 ? "BASE AURA: ELITE ✨" : "TAP TO BUILD"}</strong></div>
-    <div className="support-picker">{supportBlocks.map((b) => <button key={b.label} onClick={() => toggle(b.label)} className={blocks.includes(b.label) ? "support selected" : "support"}><span>{b.icon}</span><strong>{b.label}</strong><i>{blocks.includes(b.label) ? "PLACED ✓" : "+ BLOCK"}</i></button>)}</div>
+    <div className="build-hud"><span>BLOCKS PLACED: {blocks.length}/5</span><strong>{blocks.length >= 3 ? <PixelText text="BASE AURA: ELITE ✨" /> : "TAP TO BUILD"}</strong></div>
+    <div className="support-picker">{supportBlocks.map((b) => <button key={b.label} onClick={() => toggle(b.label)} className={blocks.includes(b.label) ? "support selected" : "support"}><span><PixelIcon icon={b.icon} /></span><strong>{b.label}</strong><i>{blocks.includes(b.label) ? "PLACED ✓" : "+ BLOCK"}</i></button>)}</div>
     <div className={`base-build ${blocks.length >= 3 ? "base-party" : ""}`}>
-      <h3>🏳️ PLAYER’S SAFE BASE</h3>
+      <h3><PixelIcon icon="🏳️" /> PLAYER’S SAFE BASE</h3>
       <div className="build-grid">{Array.from({ length: 9 }).map((_, i) => {
         const label = blocks[i % Math.max(blocks.length, 1)];
         const item = blocks.length && i >= 9 - blocks.length ? supportBlocks.find((x) => x.label === label) : null;
-        return <div className={item ? "built" : ""} key={i}>{item ? <><span>{item.icon}</span><small>{item.label}</small></> : <i />}</div>;
+        return <div className={item ? "built" : ""} key={i}>{item ? <><span><PixelIcon icon={item.icon} /></span><small>{item.label}</small></> : <i />}</div>;
       })}</div>
-      <p className="love-note">💚 I am loved. Easy days. Hard days. Every day.</p>
+      <p className="love-note"><PixelIcon icon="💚" /> I am loved. Easy days. Hard days. Every day.</p>
       {blocks.length >= 2 && <button className="primary" onClick={earn}>SAVE THE BASE · GET LOOT →</button>}
     </div>
     <div className="co-op-card">
-      <span>🤝</span>
+      <span><PixelIcon icon="🤝" /></span>
       <div><small>HOME-BASE CO-OP</small><h3>{coOpTurn} TURN</h3><p>{coOpPrompt}</p></div>
       <div className="co-op-actions">
-        <button onClick={() => { setCoOpTurn("PLAYER"); say("Player turn."); }}>🧒 MY TURN</button>
-        <button onClick={() => { setCoOpTurn("GROWN-UP"); say("Grown-up turn."); }}>🧑 GROWN-UP</button>
+        <button onClick={() => { setCoOpTurn("PLAYER"); say("Player turn."); }}><PixelIcon icon="🧒" /> MY TURN</button>
+        <button onClick={() => { setCoOpTurn("GROWN-UP"); say("Grown-up turn."); }}><PixelIcon icon="🧑" /> GROWN-UP</button>
         <button onClick={() => {
           const next = coOpMissions[Math.floor(Math.random() * coOpMissions.length)];
           setCoOpPrompt(next);
           playSound("open", muted);
           say(next);
-        }}>🎲 NEW MISSION</button>
+        }}><PixelIcon icon="🎲" /> NEW MISSION</button>
       </div>
     </div>
   </QuestShell>;
@@ -731,15 +766,15 @@ function SafetyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   const next = () => { setMove(null); setMission((value) => value + 1); };
 
   return <QuestShell title="Safety Power-Ups" subtitle="Huge feeling. Safe body. Both can be true." icon="👐">
-    <div className="safety-rule"><span>🛡️</span><div><small>THE LEGENDARY RULE</small><h2>FEELINGS CAN BE HUGE.<br />HANDS + FEET STAY SAFE.</h2><p>You are not bad. Your body needs a mission.</p></div></div>
-    <div className="safety-meter"><span>SAFETY SHIELD</span><div>{missions.map((item, index) => <i className={index < chosen.length ? "powered" : ""} key={item.title}>{item.icon}</i>)}</div></div>
+    <div className="safety-rule"><span><PixelIcon icon="🛡️" /></span><div><small>THE LEGENDARY RULE</small><h2>FEELINGS CAN BE HUGE.<br />HANDS + FEET STAY SAFE.</h2><p>You are not bad. Your body needs a mission.</p></div></div>
+    <div className="safety-meter"><span>SAFETY SHIELD</span><div>{missions.map((item, index) => <i className={index < chosen.length ? "powered" : ""} key={item.title}><PixelIcon icon={item.icon} /></i>)}</div></div>
     {!complete && <div className="safety-mission">
-      <div className="safety-boss"><span>{missions[mission].icon}</span><div><small>MISSION {mission + 1} / {missions.length}</small><h3>{missions[mission].title}</h3><p>{missions[mission].prompt}</p></div></div>
-      <div className="safe-moves">{missions[mission].moves.map((item) => <button key={item.words} disabled={Boolean(move)} className={move?.words === item.words ? "active" : ""} onClick={() => choose(item)}><span>{item.icon}</span><strong>{item.words}</strong></button>)}</div>
-      {move && <div className="safe-win"><span>✨ SAFE MOVE · +1 SHIELD ✨</span><strong>{move.icon} {move.words}</strong><p>That keeps you and other people safe. Legendary.</p><button onClick={next}>{mission === missions.length - 1 ? "MAX THE SHIELD →" : "NEXT MISSION →"}</button></div>}
+      <div className="safety-boss"><span><PixelIcon icon={missions[mission].icon} /></span><div><small>MISSION {mission + 1} / {missions.length}</small><h3>{missions[mission].title}</h3><p>{missions[mission].prompt}</p></div></div>
+      <div className="safe-moves">{missions[mission].moves.map((item) => <button key={item.words} disabled={Boolean(move)} className={move?.words === item.words ? "active" : ""} onClick={() => choose(item)}><span><PixelIcon icon={item.icon} /></span><strong>{item.words}</strong></button>)}</div>
+      {move && <div className="safe-win"><span><PixelText text="✨ SAFE MOVE · +1 SHIELD ✨" /></span><strong><PixelIcon icon={move.icon} /> {move.words}</strong><p>That keeps you and other people safe. Legendary.</p><button onClick={next}>{mission === missions.length - 1 ? "MAX THE SHIELD →" : "NEXT MISSION →"}</button></div>}
     </div>}
-    {complete && <div className="safety-complete"><span>👐🛡️</span><h2>GENTLE HANDS: LEGENDARY</h2><p>Big feelings are allowed. Safe hands, safe feet, and strong words protect everybody.</p><div>{chosen.map((item) => <i key={item}>✓ {item}</i>)}</div><button className="primary" onClick={earn}>CLAIM SAFETY LOOT →</button></div>}
-    <div className="get-help-now"><span>🚨</span><p>If you might hurt yourself or someone else, <strong>get a safe grown-up now.</strong> You do not have to handle it alone.</p></div>
+    {complete && <div className="safety-complete"><span><PixelIcon icon="👐" /><PixelIcon icon="🛡️" /></span><h2>GENTLE HANDS: LEGENDARY</h2><p>Big feelings are allowed. Safe hands, safe feet, and strong words protect everybody.</p><div>{chosen.map((item) => <i key={item}>✓ {item}</i>)}</div><button className="primary" onClick={earn}>CLAIM SAFETY LOOT →</button></div>}
+    <div className="get-help-now"><span><PixelIcon icon="🚨" /></span><p>If you might hurt yourself or someone else, <strong>get a safe grown-up now.</strong> You do not have to handle it alone.</p></div>
   </QuestShell>;
 }
 
@@ -780,19 +815,19 @@ function ParkourQuest({ earn, avatar, muted }: { earn: () => void; avatar: strin
   const reset = () => { setPosition(0); setJumping(false); setStars(0); setBonk(false); };
 
   return <QuestShell title="Pixel Parkour" subtitle="Jump slime. Grab snacks. Get the W." icon="☁️">
-    <div className="parkour-hud"><span>⭐ LOOT {stars}</span><strong>{finished ? "LEVEL CLEARED!" : jumping ? "JUMP LOADED!" : bonk ? "BOINK! JUMP FIRST!" : "READY, PLAYER ONE?"}</strong></div>
+    <div className="parkour-hud"><span><PixelIcon icon="⭐" /> LOOT {stars}</span><strong>{finished ? "LEVEL CLEARED!" : jumping ? "JUMP LOADED!" : bonk ? "BOINK! JUMP FIRST!" : "READY, PLAYER ONE?"}</strong></div>
     <div className="parkour-world">
       <div className="park-cloud pc1" /><div className="park-cloud pc2" />
       <div className="track">{track.map((item, index) => <div key={index} className={obstacles.has(index) ? "track-cell obstacle" : "track-cell"}>
-        {index === position && <span className={jumping ? "runner jumping" : "runner"}>{avatar}</span>}
-        {index !== position && <i>{item}</i>}
+        {index === position && <span className={jumping ? "runner jumping" : "runner"}><PixelIcon icon={avatar} /></span>}
+        {index !== position && <i><PixelIcon icon={item} /></i>}
       </div>)}</div>
     </div>
     <div className="arcade-controls">
-      <button onClick={jump} disabled={finished}>⬆️<strong>JUMP</strong></button>
-      <button onClick={move} disabled={finished}>➡️<strong>GO</strong></button>
+      <button onClick={jump} disabled={finished}><PixelIcon icon="⬆️" /><strong>JUMP</strong></button>
+      <button onClick={move} disabled={finished}><PixelIcon icon="➡️" /><strong>GO</strong></button>
     </div>
-    {finished && <div className="parkour-win"><span>🥟</span><h3>DUMPLING SUPREME SAYS:</h3><p>“Tiny jumps still move you forward.”</p><button className="primary" onClick={earn}>CLAIM ARCADE LOOT →</button><button className="secondary" onClick={reset}>PLAY AGAIN</button></div>}
+    {finished && <div className="parkour-win"><span><PixelIcon icon="🥟" /></span><h3>DUMPLING SUPREME SAYS:</h3><p>“Tiny jumps still move you forward.”</p><button className="primary" onClick={earn}>CLAIM ARCADE LOOT →</button><button className="secondary" onClick={reset}>PLAY AGAIN</button></div>}
   </QuestShell>;
 }
 
@@ -867,13 +902,13 @@ function BeatQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   return <QuestShell title="Chaos Beat Lab" subtitle="Make a house beat. Drop a silly rap." icon="🎛️">
     <div className={`beat-stage ${playing ? "playing" : ""}`}>
       <div className="equalizer">{[1,2,3,4,5,6,7,8,9].map((n) => <i key={n} />)}</div>
-      <div className="dj">{dancer}<span>🎧</span></div>
+      <div className="dj"><PixelIcon icon={dancer} /><span><PixelIcon icon="🎧" /></span></div>
       <h2>{playing ? "HOUSE MODE: BUSSIN’" : "DJ GLORP IS READY"}</h2>
-      <div className="beat-buttons"><button className="primary" onClick={playing ? stopBeat : startBeat}>{playing ? "⏹ STOP BEAT" : "▶ START HOUSE BEAT"}</button><button className="secondary" onClick={rap}>🎤 DROP THE SILLY RAP</button></div>
-      {muted && <p className="muted-note">🔇 Turn sound on at the top to use the beat.</p>}
+      <div className="beat-buttons"><button className="primary" onClick={playing ? stopBeat : startBeat}><PixelText text={playing ? "⏹ STOP BEAT" : "▶ START HOUSE BEAT"} /></button><button className="secondary" onClick={rap}><PixelIcon icon="🎤" /> DROP THE SILLY RAP</button></div>
+      {muted && <p className="muted-note"><PixelIcon icon="🔇" /> Turn sound on at the top to use the beat.</p>}
     </div>
-    <div className="sample-pads">{pads.map((pad) => <button key={pad.name} onClick={() => hit(pad)}><span>{pad.icon}</span><strong>{pad.name}</strong><small>TAP PAD</small></button>)}</div>
-    <p className="original-music-note">🎵 This is an original beat made inside Brave Blocks.</p>
+    <div className="sample-pads">{pads.map((pad) => <button key={pad.name} onClick={() => hit(pad)}><span><PixelIcon icon={pad.icon} /></span><strong>{pad.name}</strong><small>TAP PAD</small></button>)}</div>
+    <p className="original-music-note"><PixelIcon icon="🎵" /> This is an original beat made inside Brave Blocks.</p>
     {hits.length >= 4 && <button className="primary center" onClick={() => { stopBeat(); earn(); }}>MIX COMPLETE · GET LOOT →</button>}
   </QuestShell>;
 }
@@ -896,19 +931,19 @@ function FaithQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   return <QuestShell title="Faith Campfire" subtitle="Tap a story. Find a hope gem." icon="✨">
     <div className="campfire">
       <div className="night-stars">✦　·　✧　　✦　·　✧　　✦</div>
-      <div className="fire">🔥</div>
-      <div className="camp-crew">🦎　🐹　🥟　🟢</div>
+      <div className="fire"><PixelIcon icon="🔥" /></div>
+      <div className="camp-crew"><PixelIcon icon="🦎" /><PixelIcon icon="🐹" /><PixelIcon icon="🥟" /><PixelIcon icon="🟢" /></div>
       <h2>BIBLE STORY CAMP</h2>
       <div className="camp-buttons">
-        <button onClick={() => say("Jesus loves me. I am loved on easy days and hard days.")}>🔊 JESUS LOVES ME</button>
-        <a href="https://www.youtube.com/watch?v=ILEdpepg7D0" target="_blank" rel="noopener noreferrer">▶ FAVORITE SONG: BETTER IS ONE DAY</a>
+        <button onClick={() => say("Jesus loves me. I am loved on easy days and hard days.")}><PixelIcon icon="🔊" /> JESUS LOVES ME</button>
+        <a href="https://www.youtube.com/watch?v=ILEdpepg7D0" target="_blank" rel="noopener noreferrer"><PixelIcon icon="▶" /> FAVORITE SONG: BETTER IS ONE DAY</a>
       </div>
     </div>
     <div className="story-grid">{stories.map((item) => <button key={item.title} className={story?.title === item.title ? "story-card active" : "story-card"} onClick={() => openStory(item)}>
-      <span>{item.icon}</span><strong>{item.title}</strong><small>{opened.includes(item.title) ? "GEM FOUND ✓" : "TAP STORY"}</small>
+      <span><PixelIcon icon={item.icon} /></span><strong>{item.title}</strong><small>{opened.includes(item.title) ? "GEM FOUND ✓" : "TAP STORY"}</small>
     </button>)}</div>
-    {story && <div className="story-scroll"><small>HOPE GEM UNLOCKED</small><span>{story.icon}</span><h3>{story.title}</h3><p>{story.story}</p><strong>💎 {story.gem}</strong><button onClick={() => say(`${story.story} ${story.gem}`)}>🔊 HEAR AGAIN</button></div>}
-    <div className="faith-affirmation"><span>💛</span><p><strong>Jesus loves me.</strong><br />I can tell the truth. I can ask for help. All my feelings can come to the campfire.</p></div>
+    {story && <div className="story-scroll"><small>HOPE GEM UNLOCKED</small><span><PixelIcon icon={story.icon} /></span><h3>{story.title}</h3><p>{story.story}</p><strong><PixelIcon icon="💎" /> {story.gem}</strong><button onClick={() => say(`${story.story} ${story.gem}`)}><PixelIcon icon="🔊" /> HEAR AGAIN</button></div>}
+    <div className="faith-affirmation"><span><PixelIcon icon="💛" /></span><p><strong>Jesus loves me.</strong><br />I can tell the truth. I can ask for help. All my feelings can come to the campfire.</p></div>
     {opened.length >= 2 && <button className="primary center" onClick={earn}>COLLECT HOPE LOOT →</button>}
   </QuestShell>;
 }
@@ -917,7 +952,7 @@ function FireInstallGuide({ onClose }: { onClose: () => void }) {
   return <div className="install-modal" role="dialog" aria-modal="true" aria-label="Install Brave Blocks on a Fire tablet">
     <div className="install-sheet">
       <button className="install-close" onClick={onClose} aria-label="Close">×</button>
-      <span className="fire-tablet">📲</span>
+      <span className="fire-tablet"><PixelIcon icon="📲" /></span>
       <small>GROWN-UP SETUP</small>
       <h2>Fire Tablet Setup</h2>
       <ol>
@@ -927,7 +962,7 @@ function FireInstallGuide({ onClose }: { onClose: () => void }) {
         <li><b>If Silk has no install option</b><span>Bookmark Brave Blocks. Silk can reopen the last page, so it still works like a one-tap game.</span></li>
       </ol>
       <div className="offline-note"><strong>OFFLINE TIP</strong><p>After installation, open the game online twice. That gives the tablet a chance to save the game for basic offline play.</p></div>
-      <p className="install-private">🔐 This review edition does not save or send a child’s game choices.</p>
+      <p className="install-private"><PixelIcon icon="🔐" /> This review edition does not save or send a child’s game choices.</p>
       <button className="primary" onClick={onClose}>GOT IT ✓</button>
     </div>
   </div>;
@@ -949,18 +984,18 @@ function GrownupGuide() {
       <p>Please share observations with the caregiver outside this game. This preview does not collect responses.</p>
     </div>
     <div className="guide-grid">
-      <article><span>🧭</span><h3>Follow, don’t lead</h3><p>Let the child choose. Reflect their exact words without suggesting feelings, facts, people, or outcomes.</p></article>
-      <article><span>🫶</span><h3>Connection first</h3><p>Play for 5–10 minutes. Stop if he becomes flooded, frozen, avoidant, or simply wants to stop.</p></article>
-      <article><span>🔐</span><h3>Protect privacy</h3><p>Do not ask the child to report what they told their attorney. Have each professional explain their role and privacy limits directly.</p></article>
-      <article><span>🌱</span><h3>Welcome loyalty</h3><p>He can love, miss, fear, or feel angry with anyone while also loving and attaching to you.</p></article>
-      <article><span>🗣️</span><h3>Helpful phrases</h3><p>“All feelings are allowed.” “You don’t have to fix grown-up feelings.” “I’ll love you after any answer.”</p></article>
-      <article><span>🤝</span><h3>Share the tool</h3><p>Let the child’s clinician, attorney, and social worker adjust meeting language for the child’s developmental needs.</p></article>
-      <article><span>✨</span><h3>Faith without pressure</h3><p>Use the Bible campfire only when the child wants it. Keep God’s love unconditional; never connect legal outcomes or difficult feelings to faithfulness.</p></article>
-      <article><span>🎵</span><h3>Familiar music</h3><p>The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play.</p></article>
-      <article><span>👐</span><h3>Safe, not suppressed</h3><p>Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.</p></article>
-      <article><span>🛡️</span><h3>Safety plan</h3><p>If anyone is in immediate danger, move people and unsafe objects apart, get help, and follow the safety plan made with his clinician or pediatrician.</p></article>
-      <article><span>🎙️</span><h3>Original voice only</h3><p>The prerecorded narrator sounds consistent across devices and does not imitate a celebrity, artist, influencer, or copyrighted character.</p></article>
-      <article><span>⏭️</span><h3>Passing still counts</h3><p>Reward practicing a choice—not disclosure, agreement, or a particular feeling. “Pass” should remain a complete and respected response.</p></article>
+      <article><span><PixelIcon icon="🧭" /></span><h3>Follow, don’t lead</h3><p>Let the child choose. Reflect their exact words without suggesting feelings, facts, people, or outcomes.</p></article>
+      <article><span><PixelIcon icon="🫶" /></span><h3>Connection first</h3><p>Play for 5–10 minutes. Stop if he becomes flooded, frozen, avoidant, or simply wants to stop.</p></article>
+      <article><span><PixelIcon icon="🔐" /></span><h3>Protect privacy</h3><p>Do not ask the child to report what they told their attorney. Have each professional explain their role and privacy limits directly.</p></article>
+      <article><span><PixelIcon icon="🌱" /></span><h3>Welcome loyalty</h3><p>He can love, miss, fear, or feel angry with anyone while also loving and attaching to you.</p></article>
+      <article><span><PixelIcon icon="🗣️" /></span><h3>Helpful phrases</h3><p>“All feelings are allowed.” “You don’t have to fix grown-up feelings.” “I’ll love you after any answer.”</p></article>
+      <article><span><PixelIcon icon="🤝" /></span><h3>Share the tool</h3><p>Let the child’s clinician, attorney, and social worker adjust meeting language for the child’s developmental needs.</p></article>
+      <article><span><PixelIcon icon="✨" /></span><h3>Faith without pressure</h3><p>Use the Bible campfire only when the child wants it. Keep God’s love unconditional; never connect legal outcomes or difficult feelings to faithfulness.</p></article>
+      <article><span><PixelIcon icon="🎵" /></span><h3>Familiar music</h3><p>The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play.</p></article>
+      <article><span><PixelIcon icon="👐" /></span><h3>Safe, not suppressed</h3><p>Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.</p></article>
+      <article><span><PixelIcon icon="🛡️" /></span><h3>Safety plan</h3><p>If anyone is in immediate danger, move people and unsafe objects apart, get help, and follow the safety plan made with his clinician or pediatrician.</p></article>
+      <article><span><PixelIcon icon="🎙️" /></span><h3>Original voice only</h3><p>The prerecorded narrator sounds consistent across devices and does not imitate a celebrity, artist, influencer, or copyrighted character.</p></article>
+      <article><span><PixelIcon icon="⏭️" /></span><h3>Passing still counts</h3><p>Reward practicing a choice—not disclosure, agreement, or a particular feeling. “Pass” should remain a complete and respected response.</p></article>
     </div>
     <div className="professional-note"><strong>Important:</strong> Brave Blocks supports play and practice. It is not therapy, a forensic interview, or legal advice.</div>
   </QuestShell>;
@@ -968,7 +1003,7 @@ function GrownupGuide() {
 
 function QuestShell({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: string; children: React.ReactNode }) {
   return <section className="quest-page">
-    <div className="quest-heading"><span>{icon}</span><div><small>BRAVE BLOCKS MINIGAME</small><h1>{title}</h1><p>{subtitle}</p></div><button className="read-button" onClick={() => say(`${title}. ${subtitle}`)}>🔊<b>HEAR IT</b></button></div>
+    <div className="quest-heading"><span><PixelIcon icon={icon} /></span><div><small>BRAVE BLOCKS MINIGAME</small><h1>{title}</h1><p>{subtitle}</p></div><button className="read-button" onClick={() => say(`${title}. ${subtitle}`)}><PixelIcon icon="🔊" /><b>HEAR IT</b></button></div>
     {children}
   </section>;
 }
@@ -1066,13 +1101,13 @@ export default function HomePage() {
 
   return <main>
     <header>
-      <button className="brand" onClick={() => go("home")} aria-label="Brave Blocks home"><span>{avatar}</span><strong>BRAVE<br />BLOCKS</strong></button>
+      <button className="brand" onClick={() => go("home")} aria-label="Brave Blocks home"><span><PixelIcon icon={avatar} /></span><strong>BRAVE<br />BLOCKS</strong></button>
       <div className="game-stats"><XPBar xp={xp} /><div className="badge-bar">{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < badges.length} />)}</div></div>
       <div className="header-actions">
-        <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}>{muted ? "🔇" : "🔊"}</button>
-        <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Moses Gamer Youtuber narrator">🎮<span>VOICE</span></button>
-        <button className="listen-button" onClick={() => say(pageWords[quest])}>🔊 <span>READ</span></button>
-        <button className="guide-button" onClick={() => go("grownups")}>🔑 <span>GROWN-UPS</span></button>
+        <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}><PixelIcon icon={muted ? "🔇" : "🔊"} /></button>
+        <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Moses Gamer Youtuber narrator"><PixelIcon icon="🎮" /><span>VOICE</span></button>
+        <button className="listen-button" onClick={() => say(pageWords[quest])}><PixelIcon icon="🔊" /> <span>READ</span></button>
+        <button className="guide-button" onClick={() => go("grownups")}><PixelIcon icon="🔑" /> <span>GROWN-UPS</span></button>
       </div>
     </header>
     <div className="review-mode" role="note"><strong>WRAP TEAM REVIEW EDITION</strong><span>De-identified professional preview · no responses are saved or sent</span></div>
@@ -1082,7 +1117,7 @@ export default function HomePage() {
     {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
     {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
-    <button className="pause-portal-button" onClick={() => setShowPause(true)}><span>⏸️</span><strong>PAUSE PORTAL</strong></button>
-    <footer><span>♥</span><strong>ALL FEELINGS = VALID · NO CAP</strong><span>♥</span></footer>
+    <button className="pause-portal-button" onClick={() => setShowPause(true)}><span><PixelIcon icon="⏸️" /></span><strong>PAUSE PORTAL</strong></button>
+    <footer><span><PixelIcon icon="♥" /></span><strong>ALL FEELINGS = VALID · NO CAP</strong><span><PixelIcon icon="♥" /></span></footer>
   </main>;
 }
