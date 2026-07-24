@@ -1,9 +1,21 @@
-const CACHE = "brave-blocks-wrap-review-v1";
+const CACHE = "brave-blocks-wrap-review-v2";
 const BASE = "/brave-blocks";
 const CORE = [`${BASE}/`, `${BASE}/manifest.webmanifest`, `${BASE}/favicon.svg`, `${BASE}/icon-192.png`, `${BASE}/icon-512.png`];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)));
+  event.waitUntil(caches.open(CACHE).then(async (cache) => {
+    await cache.addAll(CORE);
+    try {
+      const response = await fetch(`${BASE}/audio/narration/index.json`);
+      if (!response.ok) return;
+      const indexResponse = response.clone();
+      const files = Object.values(await response.json());
+      await Promise.allSettled(files.map((file) => cache.add(`${BASE}/audio/narration/${file}`)));
+      await cache.put(`${BASE}/audio/narration/index.json`, indexResponse);
+    } catch {
+      // Narration is helpful but should never prevent the core game from installing.
+    }
+  }));
   self.skipWaiting();
 });
 

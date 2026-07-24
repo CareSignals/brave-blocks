@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import narrationIndex from "./narration-index.json";
 
 type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
 type Loot = { icon: string; name: string; line: string };
-type VoiceMode = "glorp" | "capy" | "home";
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -92,74 +92,37 @@ const calmSteps = [
   { label: "BLOW OUT", time: 5000 }, { label: "SHIELD MAXED!", time: 1000 },
 ];
 
-const narratorModes: Record<VoiceMode, {
-  icon: string;
-  name: string;
-  line: string;
-  sample: string;
-  rate: number;
-  pitch: number;
-  voiceHints: RegExp[];
-}> = {
-  glorp: {
-    icon: "🟢",
-    name: "DJ GLORP",
-    line: "Upbeat gamer hype",
-    sample: "DJ Glorp online. Your choices are yours. Quest mode, let’s go!",
-    rate: 1.02,
-    pitch: 1.12,
-    voiceHints: [/google us english/i, /samantha/i, /ava/i, /zira/i],
-  },
-  capy: {
-    icon: "🐹",
-    name: "CHILL CAPY",
-    line: "Warm + extra chill",
-    sample: "Chill Capy here. No rush. You can choose, pause, or pass.",
-    rate: .86,
-    pitch: .96,
-    voiceHints: [/daniel/i, /alex/i, /david/i, /google uk english male/i],
-  },
-  home: {
-    icon: "💚",
-    name: "HOME BASE",
-    line: "Steady + reassuring",
-    sample: "Home Base is online. You are loved on easy days and hard days.",
-    rate: .9,
-    pitch: 1.02,
-    voiceHints: [/susan/i, /karen/i, /samantha/i, /google us english/i],
-  },
-};
-let activeNarratorMode: VoiceMode = "glorp";
+const NARRATOR_SAMPLE = "Yo, Brave Builder! New quest unlocked. Every feeling is allowed—even the giant, messy ones. You can say it, point, draw, or pass. Gentle hands stay equipped, and your safe grown-ups are on your team. No rush. Choose your next power-up when you’re ready.";
+const recordedNarration = narrationIndex as Record<string, string>;
+let activeNarrationAudio: HTMLAudioElement | null = null;
+let narrationIsMuted = false;
 
-function equipNarrator(mode: VoiceMode) {
-  activeNarratorMode = mode;
+function stopNarration() {
+  if (activeNarrationAudio) {
+    activeNarrationAudio.pause();
+    activeNarrationAudio.currentTime = 0;
+    activeNarrationAudio = null;
+  }
 }
 
-function findNarratorVoice(mode: VoiceMode) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return undefined;
-  const voices = window.speechSynthesis.getVoices();
-  const englishVoices = voices.filter((item) => item.lang.toLowerCase().startsWith("en"));
-  const pool = englishVoices.length ? englishVoices : voices;
-  for (const hint of narratorModes[mode].voiceHints) {
-    const match = pool.find((item) => hint.test(item.name));
-    if (match) return match;
-  }
-  return pool.find((item) => item.default) ?? pool[0];
+function setNarrationMuted(muted: boolean) {
+  narrationIsMuted = muted;
+  if (muted) stopNarration();
 }
 
 function say(text: string) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  const mode = narratorModes[activeNarratorMode];
-  const selectedVoice = findNarratorVoice(activeNarratorMode);
-  if (selectedVoice) {
-    utterance.voice = selectedVoice;
-    utterance.lang = selectedVoice.lang;
-  } else utterance.lang = "en-US";
-  utterance.rate = mode.rate;
-  utterance.pitch = mode.pitch;
-  window.speechSynthesis.speak(utterance);
+  if (typeof window === "undefined" || narrationIsMuted) return;
+  stopNarration();
+  const filename = recordedNarration[text];
+  if (!filename) return;
+  const audio = new Audio(`${PUBLIC_BASE}/audio/narration/${filename}`);
+  activeNarrationAudio = audio;
+  const release = () => {
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+  };
+  audio.addEventListener("ended", release, { once: true });
+  audio.addEventListener("error", release, { once: true });
+  audio.play().catch(release);
 }
 
 function playSound(kind: "tap" | "win" | "open", muted: boolean) {
@@ -209,48 +172,20 @@ function Victory({ loot, avatar, onClose }: { loot: Loot; avatar: string; onClos
   </div>;
 }
 
-function VoiceLab({
-  mode,
-  onChoose,
-  onClose,
-}: {
-  mode: VoiceMode;
-  onChoose: (mode: VoiceMode) => void;
-  onClose: () => void;
-}) {
-  const [voiceCount, setVoiceCount] = useState(0);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      if ("speechSynthesis" in window) setVoiceCount(window.speechSynthesis.getVoices().length);
-    };
-    loadVoices();
-    window.speechSynthesis?.addEventListener?.("voiceschanged", loadVoices);
-    return () => window.speechSynthesis?.removeEventListener?.("voiceschanged", loadVoices);
-  }, []);
-
-  const choose = (next: VoiceMode) => {
-    equipNarrator(next);
-    onChoose(next);
-    say(narratorModes[next].sample);
-  };
-
+function VoiceLab({ onClose }: { onClose: () => void }) {
   return <div className="portal-screen" role="dialog" aria-modal="true" aria-label="Choose a Brave Blocks narrator">
     <section className="portal-card voice-lab">
       <button className="portal-close" onClick={onClose} aria-label="Close narrator choices">×</button>
-      <small>ORIGINAL VOICE PACKS</small>
-      <h2>🎙️ PICK THE VIBE</h2>
-      <p>Tap a character to hear a sample. These are original narrator styles—not a celebrity or character imitation.</p>
-      <div className="voice-grid">
-        {(Object.keys(narratorModes) as VoiceMode[]).map((key) => {
-          const item = narratorModes[key];
-          return <button className={mode === key ? "voice-card active" : "voice-card"} key={key} onClick={() => choose(key)}>
-            <span>{item.icon}</span><strong>{item.name}</strong><small>{item.line}</small><i>{mode === key ? "EQUIPPED ✓" : "TAP TO TRY"}</i>
-          </button>;
-        })}
+      <small>ORIGINAL VOICE PACK</small>
+      <h2>🎙️ QUEST HOST ONLINE</h2>
+      <p>This original gaming-adventure narrator is prerecorded, so it sounds the same on the phone, computer, and Fire tablet.</p>
+      <div className="voice-grid single">
+        <button className="voice-card active" onClick={() => say(NARRATOR_SAMPLE)}>
+          <span>🎮</span><strong>MOSES GAMER YOUTUBER</strong><small>Playful Minecraft quest energy + gentle support</small><i>🔊 TAP TO HEAR</i>
+        </button>
       </div>
-      <div className="voice-note"><strong>💚 PRIVATE-ONLY OPTION</strong><p>Josh or Nicole can later record short Home Base lines. Their audio would stay out of this public review version.</p></div>
-      <p className="device-voice-note">{voiceCount ? `Using one of ${voiceCount} voices available on this device.` : "The tablet will use its available built-in voice."}</p>
+      <div className="voice-note"><strong>🔐 PRIVATE BY DESIGN</strong><p>The voice is already inside the game. Moses’s taps and choices are never sent to a voice service.</p></div>
+      <p className="device-voice-note">No robotic phone or tablet voice. No celebrity, influencer, or character imitation.</p>
       <button className="primary" onClick={onClose}>LOCK IT IN →</button>
     </section>
   </div>;
@@ -266,14 +201,14 @@ const pauseMoves = [
 function PausePortal({ onClose }: { onClose: () => void }) {
   const [move, setMove] = useState<(typeof pauseMoves)[number] | null>(null);
   useEffect(() => {
-    window.speechSynthesis?.cancel();
+    stopNarration();
     window.dispatchEvent(new Event("brave-blocks-pause"));
   }, []);
 
   const choose = (item: (typeof pauseMoves)[number]) => {
     setMove(item);
     if (item.name !== "QUIET CAVE") say(`${item.name}. ${item.line}`);
-    else window.speechSynthesis?.cancel();
+    else stopNarration();
   };
 
   return <div className="portal-screen pause-screen" role="dialog" aria-modal="true" aria-label="Pause Portal">
@@ -995,7 +930,7 @@ function GrownupGuide() {
       <article><span>🎵</span><h3>Familiar music</h3><p>The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play.</p></article>
       <article><span>👐</span><h3>Safe, not suppressed</h3><p>Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.</p></article>
       <article><span>🛡️</span><h3>Safety plan</h3><p>If anyone is in immediate danger, move people and unsafe objects apart, get help, and follow the safety plan made with his clinician or pediatrician.</p></article>
-      <article><span>🎙️</span><h3>Original voices only</h3><p>The narrator packs change pacing and tone using voices available on the device. They do not imitate a celebrity, artist, influencer, or copyrighted character.</p></article>
+      <article><span>🎙️</span><h3>Original voice only</h3><p>The prerecorded narrator sounds consistent across devices and does not imitate a celebrity, artist, influencer, or copyrighted character.</p></article>
       <article><span>⏭️</span><h3>Passing still counts</h3><p>Reward practicing a choice—not disclosure, agreement, or a particular feeling. “Pass” should remain a complete and respected response.</p></article>
     </div>
     <div className="professional-note"><strong>Important:</strong> Brave Blocks supports play and practice. It is not therapy, a forensic interview, or legal advice.</div>
@@ -1022,10 +957,8 @@ export default function HomePage() {
   const [showInstall, setShowInstall] = useState(false);
   const [showPause, setShowPause] = useState(false);
   const [showVoiceLab, setShowVoiceLab] = useState(false);
-  const [voiceMode, setVoiceMode] = useState<VoiceMode>("glorp");
 
   useEffect(() => {
-    equipNarrator(voiceMode);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register(`${PUBLIC_BASE}/sw.js`).catch(() => undefined);
     const capturePrompt = (event: Event) => {
       event.preventDefault();
@@ -1033,7 +966,11 @@ export default function HomePage() {
     };
     window.addEventListener("beforeinstallprompt", capturePrompt);
     return () => window.removeEventListener("beforeinstallprompt", capturePrompt);
-  }, [voiceMode]);
+  }, []);
+
+  useEffect(() => {
+    setNarrationMuted(muted);
+  }, [muted]);
 
   const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", loadout: "Choice Pack", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Glorp Record", faith: "Hope Gem", grownups: "" };
   const pageWords: Record<Quest, string> = {
@@ -1104,7 +1041,7 @@ export default function HomePage() {
       <div className="game-stats"><XPBar xp={xp} /><div className="badge-bar">{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < badges.length} />)}</div></div>
       <div className="header-actions">
         <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}>{muted ? "🔇" : "🔊"}</button>
-        <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label={`Choose narrator. ${narratorModes[voiceMode].name} is equipped`}>{narratorModes[voiceMode].icon}<span>VOICE</span></button>
+        <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Moses Gamer Youtuber narrator">🎮<span>VOICE</span></button>
         <button className="listen-button" onClick={() => say(pageWords[quest])}>🔊 <span>READ</span></button>
         <button className="guide-button" onClick={() => go("grownups")}>🔑 <span>GROWN-UPS</span></button>
       </div>
@@ -1115,7 +1052,7 @@ export default function HomePage() {
     {loot && <Victory loot={loot} avatar={avatar} onClose={closeLoot} />}
     {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
-    {showVoiceLab && <VoiceLab mode={voiceMode} onChoose={setVoiceMode} onClose={() => setShowVoiceLab(false)} />}
+    {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
     <button className="pause-portal-button" onClick={() => setShowPause(true)}><span>⏸️</span><strong>PAUSE PORTAL</strong></button>
     <footer><span>♥</span><strong>ALL FEELINGS = VALID · NO CAP</strong><span>♥</span></footer>
   </main>;

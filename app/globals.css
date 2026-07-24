@@ -903,6 +903,7 @@ button,a{
   gap:15px;
   margin:23px 0;
 }
+.voice-grid.single{grid-template-columns:minmax(0,430px);justify-content:center}
 .voice-card,.pause-move{
   min-height:190px;
   padding:16px;
