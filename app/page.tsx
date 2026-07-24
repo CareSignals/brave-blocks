@@ -1,0 +1,747 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+
+type Quest = "home" | "feelings" | "body" | "calm" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
+type Loot = { icon: string; name: string; line: string };
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+const PUBLIC_BASE = "/brave-blocks";
+
+const avatars = [
+  { icon: "🦎", name: "Axo Maxxo" },
+  { icon: "🐹", name: "Capy Bappy" },
+  { icon: "🥟", name: "Dumpling Supreme" },
+  { icon: "🟢", name: "DJ Glorp" },
+  { icon: "🐲", name: "Dragon Bro" },
+  { icon: "🤖", name: "Beat Bot" },
+];
+const chaosCrew = [
+  { icon: "🦎", name: "AXO MAXXO", line: "Glow-mode: ON", color: "pink" },
+  { icon: "🐹", name: "CAPY BAPPY", line: "Chill aura: ELITE", color: "brown" },
+  { icon: "🥟", name: "DUMPLING SUPREME", line: "Snack-sized courage", color: "gold" },
+  { icon: "🟢", name: "DJ GLORP", line: "Slime beat unlocked", color: "slime" },
+];
+const lootDrops: Loot[] = [
+  { icon: "💎", name: "Truth Gem", line: "Your own words = max power." },
+  { icon: "🪄", name: "Pause Wand", line: "Need a break? Cast it." },
+  { icon: "🧪", name: "Mixed-Feels Potion", line: "Two feelings can both be real." },
+  { icon: "🛡️", name: "No-Cap Shield", line: "You never have to guess." },
+  { icon: "🧭", name: "Body Compass", line: "Your body drops useful clues." },
+  { icon: "🧸", name: "Home-Base Buddy", line: "Support squad: always equipped." },
+  { icon: "🫧", name: "Axo Glow Bubbles", line: "Glow through every feeling." },
+  { icon: "👑", name: "Capy Chill Crown", line: "Soft body. Strong heart." },
+  { icon: "🥟", name: "Dumpling Boost", line: "Tiny snack. Huge courage." },
+  { icon: "🟢", name: "Glorp Beat Blob", line: "Turn feelings into rhythm." },
+  { icon: "👐", name: "Gentle Hands Glow", line: "Huge feeling. Safe body. Legendary." },
+];
+
+const feelings = [
+  { name: "Happy", face: "😊", color: "#ffd166", clue: "light + bouncy" },
+  { name: "Sad", face: "😢", color: "#55a7f3", clue: "heavy + slow" },
+  { name: "Mad", face: "😠", color: "#ff6b62", clue: "hot + stompy" },
+  { name: "Worried", face: "😟", color: "#9f86ff", clue: "jumpy + buzzy" },
+  { name: "Scared", face: "😨", color: "#7467d8", clue: "shaky + fast" },
+  { name: "Confused", face: "😕", color: "#79c9bd", clue: "foggy + unsure" },
+  { name: "Loved", face: "🥰", color: "#ff8fbd", clue: "warm + safe" },
+  { name: "Mixed", face: "🫨", color: "#ff9f43", clue: "a whole combo" },
+];
+
+const bodySpots = [
+  { id: "head", label: "Head", icon: "🧠", sensations: ["busy", "foggy", "achy"] },
+  { id: "face", label: "Face", icon: "😶", sensations: ["hot", "teary", "tight"] },
+  { id: "chest", label: "Chest", icon: "💓", sensations: ["fast", "tight", "fluttery"] },
+  { id: "belly", label: "Belly", icon: "🌀", sensations: ["butterflies", "achy", "wobbly"] },
+  { id: "hands", label: "Hands", icon: "🖐️", sensations: ["fists", "sweaty", "shaky"] },
+  { id: "legs", label: "Legs", icon: "🦵", sensations: ["stompy", "jumpy", "heavy"] },
+];
+
+const meetingMoves = [
+  { icon: "💬", words: "I feel...", tip: "Say any feeling." },
+  { icon: "❓", words: "I don’t get it.", tip: "Ask for easier words." },
+  { icon: "⏸️", words: "I need a break.", tip: "Pause the meeting." },
+  { icon: "🤷", words: "I don’t know.", tip: "No guessing. No cap." },
+  { icon: "🔒", words: "Who will you tell?", tip: "Ask what gets shared." },
+  { icon: "🧱", words: "Not ready yet.", tip: "Take your time." },
+];
+
+const meetingRounds = [
+  { icon: "🧑‍💼", words: "Hi! My job is to listen. How are you feeling?" },
+  { icon: "🧠", words: "Your brain feels foggy. What move could help?" },
+  { icon: "⏳", words: "You want more time. Pick your power move." },
+];
+
+const supportBlocks = [
+  { icon: "🏠", label: "Home" },
+  { icon: "💛", label: "Trusted grown-up" },
+  { icon: "💚", label: "My grown-up" },
+  { icon: "🧸", label: "Cozy thing" },
+  { icon: "🐾", label: "Animal" },
+  { icon: "🏫", label: "School helper" },
+  { icon: "🧑‍⚕️", label: "Counselor" },
+  { icon: "⭐", label: "My person" },
+];
+const calmSteps = [
+  { label: "BREATHE IN", time: 4000 }, { label: "HOLD", time: 2000 },
+  { label: "BLOW OUT", time: 5000 }, { label: "RESET", time: 1500 },
+  { label: "BREATHE IN", time: 4000 }, { label: "HOLD", time: 2000 },
+  { label: "BLOW OUT", time: 5000 }, { label: "SHIELD MAXED!", time: 1000 },
+];
+
+function say(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const voice = new SpeechSynthesisUtterance(text);
+  voice.rate = 0.84;
+  voice.pitch = 1.06;
+  window.speechSynthesis.speak(voice);
+}
+
+function playSound(kind: "tap" | "win" | "open", muted: boolean) {
+  if (muted || typeof window === "undefined") return;
+  const AudioCtor = window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtor) return;
+  const audio = new AudioCtor();
+  const notes = kind === "win" ? [392, 523, 659] : kind === "open" ? [220, 440] : [330];
+  notes.forEach((note, i) => {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    oscillator.type = "square";
+    oscillator.frequency.value = note;
+    gain.gain.setValueAtTime(0.055, audio.currentTime + i * .1);
+    gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + i * .1 + .09);
+    oscillator.connect(gain);
+    gain.connect(audio.destination);
+    oscillator.start(audio.currentTime + i * .1);
+    oscillator.stop(audio.currentTime + i * .1 + .1);
+  });
+  window.setTimeout(() => audio.close(), 700);
+}
+
+function PixelHeart({ filled }: { filled: boolean }) {
+  return <span className={filled ? "heart filled" : "heart"} aria-hidden="true">♥</span>;
+}
+
+function XPBar({ xp }: { xp: number }) {
+  return <div className="xp-wrap" aria-label={`${xp} brave experience points`}>
+    <span>⚡ {xp} XP</span>
+    <div className="xp-track"><i style={{ width: `${Math.min(100, xp / 5)}%` }} /></div>
+  </div>;
+}
+
+function Victory({ loot, avatar, onClose }: { loot: Loot; avatar: string; onClose: () => void }) {
+  return <div className="victory-screen" role="dialog" aria-modal="true" aria-label="Quest complete">
+    <div className="confetti" aria-hidden="true">{["■","●","▲","★","■","●","▲","★","■","●","▲","★"].map((x, i) => <i key={i}>{x}</i>)}</div>
+    <div className="loot-card">
+      <span className="victory-avatar">{avatar}</span>
+      <small>QUEST W · +100 XP</small>
+      <h2>YOU COOKED!</h2>
+      <p>Rare loot unlocked:</p>
+      <div className="loot-drop"><span>{loot.icon}</span><strong>{loot.name}</strong><em>{loot.line}</em></div>
+      <button onClick={onClose}>EQUIP + KEEP PLAYING →</button>
+    </div>
+  </div>;
+}
+
+function Home({
+  go, avatar, setAvatar, xp, collection, claimed, claimBonus, installApp,
+}: {
+  go: (quest: Quest) => void;
+  avatar: string;
+  setAvatar: (avatar: string) => void;
+  xp: number;
+  collection: Loot[];
+  claimed: boolean;
+  claimBonus: () => void;
+  installApp: () => void;
+}) {
+  const quests = [
+    { id: "feelings" as Quest, icon: "🧪", title: "Vibe Mixer", text: "Mix feeling energy", color: "yellow", tag: "COMBO MODE" },
+    { id: "body" as Quest, icon: "📡", title: "Body Radar", text: "Scan secret clues", color: "blue", tag: "SCANNER MODE" },
+    { id: "calm" as Quest, icon: "🐉", title: "Dragon Battle", text: "Charge your shield", color: "purple", tag: "BOSS MODE" },
+    { id: "meeting" as Quest, icon: "🛡️", title: "Talk Power-Up", text: "Choose your move", color: "orange", tag: "ROLE-PLAY MODE" },
+    { id: "base" as Quest, icon: "🏰", title: "Build Mode", text: "Stack your squad", color: "green", tag: "CREATIVE MODE" },
+    { id: "safety" as Quest, icon: "👐", title: "Safety Power-Ups", text: "Give your body a mission", color: "red", tag: "GENTLE MODE" },
+    { id: "parkour" as Quest, icon: "☁️", title: "Pixel Parkour", text: "Jump the slime", color: "teal", tag: "ARCADE MODE" },
+    { id: "beats" as Quest, icon: "🎛️", title: "Beat Lab", text: "Make chaos music", color: "pink", tag: "HOUSE MODE" },
+    { id: "faith" as Quest, icon: "✨", title: "Faith Campfire", text: "Tap a Bible story", color: "gold", tag: "STORY MODE" },
+  ];
+
+  return <>
+    <section className="hero key-art-hero">
+      <h1 className="sr-only">Brave Blocks: big feelings, brave words, wild quests</h1>
+      <Image
+        className="hero-art"
+        src={`${PUBLIC_BASE}/og.png`}
+        width={1672}
+        height={941}
+        priority
+        alt="Brave Blocks voxel world with Axo Maxxo, Capy Bappy, Dumpling Supreme, DJ Glorp, a safe home, a campfire, and a music stage"
+      />
+      <div className="hero-status">
+        <span className="status-avatar">{avatar}</span>
+        <div><small>PLAYER HAS ENTERED THE WORLD</small><strong>CHOOSE A PLAYER · PICK A QUEST · GET THE W</strong></div>
+        <span className="status-live">● SAFE BASE ONLINE</span>
+      </div>
+      <div className="promise key-art-promise">
+        <span>💚</span>
+        <p><strong>HOME-BASE BUFF</strong><br />Loved. Not alone. Grown-up problems = not your fault.</p>
+      </div>
+    </section>
+
+    <section className="player-deck">
+      <div>
+        <small>CHOOSE YOUR PLAYER</small>
+        <div className="avatar-row">{avatars.map((a) => <button key={a.name} title={a.name} aria-label={`Choose ${a.name}`} className={avatar === a.icon ? "avatar-pick active" : "avatar-pick"} onClick={() => { playSound("tap", false); say(`${a.name} selected`); setAvatar(a.icon); }}>{a.icon}</button>)}</div>
+      </div>
+      <button className={claimed ? "mystery claimed" : "mystery"} onClick={claimBonus} disabled={claimed}>
+        <span>{claimed ? "✨" : "?"}</span>
+        <strong>{claimed ? "DAILY W CLAIMED" : "CRACK MYSTERY BLOCK"}</strong>
+        <small>{claimed ? "+25 XP · huge" : "tap for surprise XP"}</small>
+      </button>
+      <div className="mini-inventory"><small>YOUR LOOT</small><div>{collection.length ? collection.slice(-5).map((item, i) => <span title={item.name} key={`${item.name}-${i}`}>{item.icon}</span>) : <p>win a quest →</p>}</div></div>
+    </section>
+
+    <section className="crew-section">
+      <div className="crew-title"><small>THE CHAOS CREW</small><strong>Original weird little legends</strong></div>
+      <div className="crew-grid">{chaosCrew.map((friend) => <button key={friend.name} className={`crew-card ${friend.color}`} onClick={() => { playSound("tap", false); say(`${friend.name}. ${friend.line}`); }}>
+        <span>{friend.icon}</span><div><strong>{friend.name}</strong><small>{friend.line}</small></div>
+      </button>)}</div>
+    </section>
+
+    <button className="install-banner" onClick={installApp}>
+      <span>📲</span><div><small>GROWN-UP SETUP</small><strong>PUT BRAVE BLOCKS ON THE FIRE TABLET</strong><em>app icon + full-screen play + basic offline support</em></div><b>SET UP →</b>
+    </button>
+
+    <section className="quest-section">
+      <div className="section-title"><span>✦</span><div><small>THE QUEST MAP</small><h2>Pick your next W</h2></div><span>✦</span></div>
+      <div className="quest-grid">
+        {quests.map((q) => <button className={`quest-card ${q.color}`} key={q.id} onClick={() => go(q.id)}>
+          <span className="quest-number">{q.tag}</span><span className="quest-icon">{q.icon}</span>
+          <strong>{q.title}</strong><span>{q.text}</span><em>LOCK IN →</em>
+        </button>)}
+      </div>
+      <p className="level-line">{xp >= 500 ? "🏆 MAX BRAVE AURA UNLOCKED" : `⚡ ${500 - Math.min(xp, 500)} XP TO MAX BRAVE AURA`}</p>
+    </section>
+    <p className="privacy-note">🔐 No saves. No sending. Your picks stay on this screen.</p>
+  </>;
+}
+
+function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const toggle = (name: string, clue: string) => {
+    playSound("tap", muted);
+    say(`${name}. ${clue}.`);
+    setPicked((p) => p.includes(name) ? p.filter((x) => x !== name) : [...p, name]);
+  };
+  return <QuestShell title="Vibe Mixer" subtitle="Tap your whole feeling squad." icon="🧪">
+    <div className={`mixer ${picked.length > 1 ? "ultra" : ""}`}>
+      <div className="mixer-jar"><div>{picked.map((name) => <span key={name}>{feelings.find((f) => f.name === name)?.face}</span>)}</div></div>
+      <div><small>LIVE VIBE CHECK</small><h2>{picked.length === 0 ? "EMPTY MIX" : picked.length === 1 ? `${picked[0]} MODE` : `${picked.length}X COMBO!`}</h2><p>{picked.length > 1 ? "ULTRA RARE MIXED FEELINGS ✨" : "Choose what is here right now."}</p></div>
+    </div>
+    <div className="feeling-grid">
+      {feelings.map((f) => <button key={f.name} onClick={() => toggle(f.name, f.clue)} className={`feeling-block ${picked.includes(f.name) ? "selected" : ""}`} style={{ "--block": f.color } as React.CSSProperties}>
+        <span>{f.face}</span><strong>{f.name}</strong><small>{f.clue}</small><i>{picked.includes(f.name) ? "IN THE MIX ✓" : "ADD +"}</i>
+      </button>)}
+    </div>
+    {picked.length > 0 && <div className="quest-result"><span className="big">🔥</span><div><strong>That mix is valid. Huge W.</strong><p>Opposite feelings can team up. Nothing weird about it.</p></div><button onClick={earn}>CRAFT LOOT →</button></div>}
+  </QuestShell>;
+}
+
+function BodyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const [spot, setSpot] = useState<(typeof bodySpots)[number] | null>(null);
+  const [found, setFound] = useState<string[]>([]);
+  const scan = (label: string) => {
+    playSound("open", muted);
+    say(`${label}. Clue found.`);
+    setFound((items) => items.includes(label) ? items : [...items, label]);
+  };
+  const power = Math.min(100, found.length * 25);
+  return <QuestShell title="Body Radar" subtitle="Your body drops clues. Scan them." icon="📡">
+    <div className="scanner-top"><span>RADAR POWER</span><div><i style={{ width: `${power}%` }} /></div><strong>{power}%</strong></div>
+    <div className="body-layout">
+      <div className={`block-person ${spot ? "scanning" : ""}`} aria-label="Body map">
+        <div className="scan-line" /><div className="bp-head">🙂</div><div className="bp-body">♥</div><div className="bp-arms">━　━</div><div className="bp-legs">▮　▮</div>
+      </div>
+      <div className="spot-grid">
+        {bodySpots.map((s) => <button key={s.id} className={spot?.id === s.id ? "spot active" : "spot"} onClick={() => { playSound("tap", muted); say(s.label); setSpot(s); }}><span>{s.icon}</span>{s.label}</button>)}
+      </div>
+    </div>
+    {spot && <div className="sensation-panel"><h3>📡 WHAT’S THE CLUE?</h3><div>{spot.sensations.map((s) => <button key={s} className={found.includes(`${spot.label}: ${s}`) ? "chip chosen" : "chip"} onClick={() => scan(`${spot.label}: ${s}`)}>{s}</button>)}<button className="chip" onClick={() => scan(`${spot.label}: something else`)}>something else</button></div></div>}
+    {found.length > 0 && <div className="scan-log"><strong>CLUE LOG</strong>{found.map((x) => <span key={x}>✓ {x}</span>)}</div>}
+    {found.length >= 2 && <button className="primary center" onClick={earn}>RADAR LOCKED IN · GET LOOT →</button>}
+  </QuestShell>;
+}
+
+function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const [running, setRunning] = useState(false);
+  const [step, setStep] = useState(0);
+  const [won, setWon] = useState(false);
+
+  useEffect(() => {
+    if (!running) return;
+    say(calmSteps[step].label);
+    const timer = window.setTimeout(() => {
+      if (step === calmSteps.length - 1) {
+        setRunning(false); setWon(true); playSound("win", muted); say("Shield maxed. Huge W.");
+      } else setStep((s) => s + 1);
+    }, calmSteps[step].time);
+    return () => window.clearTimeout(timer);
+  }, [running, step, muted]);
+
+  const start = () => { playSound("open", muted); setWon(false); setStep(0); setRunning(true); };
+  return <QuestShell title="Dragon Battle" subtitle="Slow breath = max shield power." icon="🐉">
+    <div className={`breath-world ${running ? "breathing" : ""} ${won ? "won" : ""}`}>
+      <div className="battle-hud"><span>DRAGON BOSS</span><div><i style={{ width: won ? "0%" : `${100 - (step / calmSteps.length) * 100}%` }} /></div></div>
+      <div className="dragon">🐲<i>🔥</i></div>
+      <div className="breath-orb"><span>{running ? calmSteps[step].label : won ? "MAX POWER" : "READY?"}</span></div>
+      <div className="shield-charge"><span>SHIELD</span>{[0,1,2,3].map((x) => <i className={won || step > x * 2 ? "charged" : ""} key={x}>◆</i>)}</div>
+      <button className="primary" disabled={running} onClick={start}>{running ? "LOCKED IN..." : won ? "REMATCH 🔁" : "START BOSS BATTLE"}</button>
+      {won && <button className="secondary" onClick={earn}>CLAIM BOSS LOOT →</button>}
+    </div>
+  </QuestShell>;
+}
+
+function MeetingQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const [round, setRound] = useState(0);
+  const [played, setPlayed] = useState(false);
+  const [lastMove, setLastMove] = useState<(typeof meetingMoves)[number] | null>(null);
+  const complete = round >= meetingRounds.length;
+
+  const move = (choice: (typeof meetingMoves)[number]) => {
+    playSound("win", muted);
+    say(`${choice.words}. Nice move. Your own words have power.`);
+    setLastMove(choice);
+    setPlayed(true);
+  };
+  const next = () => { setLastMove(null); setPlayed(false); setRound((r) => r + 1); };
+
+  return <QuestShell title="Talk Power-Up" subtitle="Boss-level meeting? Choose your move." icon="🛡️">
+    <div className="meeting-game">
+      <div className="npc-zone">
+        <div className="npc">{complete ? "🏆" : meetingRounds[round].icon}<i /></div>
+        <div className="speech-bubble">
+          <small>{complete ? "MISSION COMPLETE" : `ROUND ${round + 1} / 3`}</small>
+          <p>{complete ? "You practiced using your own words. Main-character energy." : meetingRounds[round].words}</p>
+          {!complete && <button onClick={() => say(meetingRounds[round].words)}>🔊 HEAR</button>}
+        </div>
+      </div>
+      {!complete && <div className="move-grid">{meetingMoves.map((m) => <button key={m.words} disabled={played} className={lastMove?.words === m.words ? "move active" : "move"} onClick={() => move(m)}><span>{m.icon}</span><strong>“{m.words}”</strong></button>)}</div>}
+      {lastMove && <div className="move-win"><span>+1 BRAVE AURA</span><strong>“{lastMove.words}”</strong><p>{lastMove.tip} Your answer belongs to you.</p><button onClick={next}>{round === 2 ? "FINISH MISSION →" : "NEXT ROUND →"}</button></div>}
+      {complete && <div className="meeting-finish"><p>🛡️ You can tell the truth. You can say “I don’t know.” You can ask for a break. You never have to choose sides.</p><button className="primary" onClick={earn}>OPEN POWER LOOT →</button></div>}
+    </div>
+    <div className="privacy-power"><span>🔒</span><p><strong>SMART MOVE:</strong> Ask each grown-up what they will keep private and what they may share.</p></div>
+  </QuestShell>;
+}
+
+function BaseQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const [blocks, setBlocks] = useState<string[]>([]);
+  const toggle = (label: string) => {
+    playSound("open", muted); say(label);
+    setBlocks((b) => b.includes(label) ? b.filter((x) => x !== label) : b.length < 5 ? [...b, label] : b);
+  };
+  return <QuestShell title="Build Mode" subtitle="Stack your support squad." icon="🏰">
+    <div className="build-hud"><span>BLOCKS PLACED: {blocks.length}/5</span><strong>{blocks.length >= 3 ? "BASE AURA: ELITE ✨" : "TAP TO BUILD"}</strong></div>
+    <div className="support-picker">{supportBlocks.map((b) => <button key={b.label} onClick={() => toggle(b.label)} className={blocks.includes(b.label) ? "support selected" : "support"}><span>{b.icon}</span><strong>{b.label}</strong><i>{blocks.includes(b.label) ? "PLACED ✓" : "+ BLOCK"}</i></button>)}</div>
+    <div className={`base-build ${blocks.length >= 3 ? "base-party" : ""}`}>
+      <h3>🏳️ PLAYER’S SAFE BASE</h3>
+      <div className="build-grid">{Array.from({ length: 9 }).map((_, i) => {
+        const label = blocks[i % Math.max(blocks.length, 1)];
+        const item = blocks.length && i >= 9 - blocks.length ? supportBlocks.find((x) => x.label === label) : null;
+        return <div className={item ? "built" : ""} key={i}>{item ? <><span>{item.icon}</span><small>{item.label}</small></> : <i />}</div>;
+      })}</div>
+      <p className="love-note">💚 I am loved. Easy days. Hard days. Every day.</p>
+      {blocks.length >= 2 && <button className="primary" onClick={earn}>SAVE THE BASE · GET LOOT →</button>}
+    </div>
+  </QuestShell>;
+}
+
+function SafetyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const missions = [
+    {
+      icon: "👐", title: "HANDS MISSION", prompt: "Big mad energy! Give your hands a safe job.",
+      moves: [
+        { icon: "🛏️", words: "Squeeze a pillow" },
+        { icon: "🧱", words: "Push the wall" },
+        { icon: "🧸", words: "Hold something soft" },
+        { icon: "🏗️", words: "Build with blocks" },
+      ],
+    },
+    {
+      icon: "🦶", title: "BODY MISSION", prompt: "Your body has zoomies. Move it safely.",
+      moves: [
+        { icon: "🐻", words: "Bear walk" },
+        { icon: "💃", words: "Dance break" },
+        { icon: "🫨", words: "Shake, then freeze" },
+        { icon: "🚶", words: "Walk with a grown-up" },
+      ],
+    },
+    {
+      icon: "📢", title: "WORDS MISSION", prompt: "You need space. Power words unlocked.",
+      moves: [
+        { icon: "✋", words: "Space, please" },
+        { icon: "🆘", words: "I need help" },
+        { icon: "⏸️", words: "Break, please" },
+        { icon: "😠", words: "I am super mad" },
+      ],
+    },
+    {
+      icon: "🛠️", title: "REPAIR MISSION", prompt: "Something went wrong. Repair is a power move.",
+      moves: [
+        { icon: "🧑", words: "Get my grown-up" },
+        { icon: "🩹", words: "Check for hurts" },
+        { icon: "🔧", words: "Help fix it" },
+        { icon: "🔁", words: "Try again later" },
+      ],
+    },
+  ];
+  const [mission, setMission] = useState(0);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [move, setMove] = useState<{ icon: string; words: string } | null>(null);
+  const complete = mission >= missions.length;
+
+  const choose = (item: { icon: string; words: string }) => {
+    playSound("win", muted);
+    say(`${item.words}. Safe move. Huge W.`);
+    setMove(item);
+    setChosen((items) => [...items, item.words]);
+  };
+  const next = () => { setMove(null); setMission((value) => value + 1); };
+
+  return <QuestShell title="Safety Power-Ups" subtitle="Huge feeling. Safe body. Both can be true." icon="👐">
+    <div className="safety-rule"><span>🛡️</span><div><small>THE LEGENDARY RULE</small><h2>FEELINGS CAN BE HUGE.<br />HANDS + FEET STAY SAFE.</h2><p>You are not bad. Your body needs a mission.</p></div></div>
+    <div className="safety-meter"><span>SAFETY SHIELD</span><div>{missions.map((item, index) => <i className={index < chosen.length ? "powered" : ""} key={item.title}>{item.icon}</i>)}</div></div>
+    {!complete && <div className="safety-mission">
+      <div className="safety-boss"><span>{missions[mission].icon}</span><div><small>MISSION {mission + 1} / {missions.length}</small><h3>{missions[mission].title}</h3><p>{missions[mission].prompt}</p></div></div>
+      <div className="safe-moves">{missions[mission].moves.map((item) => <button key={item.words} disabled={Boolean(move)} className={move?.words === item.words ? "active" : ""} onClick={() => choose(item)}><span>{item.icon}</span><strong>{item.words}</strong></button>)}</div>
+      {move && <div className="safe-win"><span>✨ SAFE MOVE · +1 SHIELD ✨</span><strong>{move.icon} {move.words}</strong><p>That keeps you and other people safe. Legendary.</p><button onClick={next}>{mission === missions.length - 1 ? "MAX THE SHIELD →" : "NEXT MISSION →"}</button></div>}
+    </div>}
+    {complete && <div className="safety-complete"><span>👐🛡️</span><h2>GENTLE HANDS: LEGENDARY</h2><p>Big feelings are allowed. Safe hands, safe feet, and strong words protect everybody.</p><div>{chosen.map((item) => <i key={item}>✓ {item}</i>)}</div><button className="primary" onClick={earn}>CLAIM SAFETY LOOT →</button></div>}
+    <div className="get-help-now"><span>🚨</span><p>If you might hurt yourself or someone else, <strong>get a safe grown-up now.</strong> You do not have to handle it alone.</p></div>
+  </QuestShell>;
+}
+
+function ParkourQuest({ earn, avatar, muted }: { earn: () => void; avatar: string; muted: boolean }) {
+  const track = ["🏁", "⭐", "🟢", "🫧", "🧱", "💚", "🟢", "🥟", "⭐", "🏆"];
+  const obstacles = new Set([2, 4, 6]);
+  const [position, setPosition] = useState(0);
+  const [jumping, setJumping] = useState(false);
+  const [stars, setStars] = useState(0);
+  const [bonk, setBonk] = useState(false);
+  const finished = position === track.length - 1;
+
+  const jump = () => {
+    if (finished) return;
+    playSound("open", muted);
+    setJumping(true);
+    setBonk(false);
+    say("Jump ready!");
+  };
+  const move = () => {
+    if (finished) return;
+    const next = position + 1;
+    if (obstacles.has(next) && !jumping) {
+      setBonk(true);
+      playSound("tap", muted);
+      say("Boink! Tap jump first.");
+      return;
+    }
+    if (track[next] === "⭐" || track[next] === "💚" || track[next] === "🥟") {
+      setStars((value) => value + 1);
+      playSound("win", muted);
+    } else playSound("tap", muted);
+    setPosition(next);
+    setJumping(false);
+    setBonk(false);
+    if (next === track.length - 1) say("Parkour W. You made it!");
+  };
+  const reset = () => { setPosition(0); setJumping(false); setStars(0); setBonk(false); };
+
+  return <QuestShell title="Pixel Parkour" subtitle="Jump slime. Grab snacks. Get the W." icon="☁️">
+    <div className="parkour-hud"><span>⭐ LOOT {stars}</span><strong>{finished ? "LEVEL CLEARED!" : jumping ? "JUMP LOADED!" : bonk ? "BOINK! JUMP FIRST!" : "READY, PLAYER ONE?"}</strong></div>
+    <div className="parkour-world">
+      <div className="park-cloud pc1" /><div className="park-cloud pc2" />
+      <div className="track">{track.map((item, index) => <div key={index} className={obstacles.has(index) ? "track-cell obstacle" : "track-cell"}>
+        {index === position && <span className={jumping ? "runner jumping" : "runner"}>{avatar}</span>}
+        {index !== position && <i>{item}</i>}
+      </div>)}</div>
+    </div>
+    <div className="arcade-controls">
+      <button onClick={jump} disabled={finished}>⬆️<strong>JUMP</strong></button>
+      <button onClick={move} disabled={finished}>➡️<strong>GO</strong></button>
+    </div>
+    {finished && <div className="parkour-win"><span>🥟</span><h3>DUMPLING SUPREME SAYS:</h3><p>“Tiny jumps still move you forward.”</p><button className="primary" onClick={earn}>CLAIM ARCADE LOOT →</button><button className="secondary" onClick={reset}>PLAY AGAIN</button></div>}
+  </QuestShell>;
+}
+
+function BeatQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const beatRef = useRef<{ audio: AudioContext; timer: number; beat: number } | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [hits, setHits] = useState<string[]>([]);
+  const [dancer, setDancer] = useState("🟢");
+
+  const tone = (audio: AudioContext, frequency: number, length = .08, type: OscillatorType = "square") => {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    oscillator.type = type;
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(.05, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + length);
+    oscillator.connect(gain); gain.connect(audio.destination);
+    oscillator.start(); oscillator.stop(audio.currentTime + length);
+  };
+  const stopBeat = () => {
+    if (!beatRef.current) return;
+    window.clearInterval(beatRef.current.timer);
+    beatRef.current.audio.close();
+    beatRef.current = null;
+    setPlaying(false);
+  };
+  const startBeat = () => {
+    if (playing || muted) return;
+    const AudioCtor = window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtor) return;
+    const audio = new AudioCtor();
+    const state = { audio, timer: 0, beat: 0 };
+    const pulse = () => {
+      const n = state.beat++;
+      tone(audio, n % 4 === 0 ? 82 : 170, n % 4 === 0 ? .18 : .035, n % 4 === 0 ? "sine" : "square");
+      if (n % 2 === 1) tone(audio, 880, .025, "triangle");
+    };
+    pulse();
+    state.timer = window.setInterval(pulse, 250);
+    beatRef.current = state;
+    setPlaying(true);
+  };
+  useEffect(() => () => stopBeat(), []);
+
+  const pads = [
+    { icon: "🦎", name: "AXO", words: "Axo Maxxo, glow on patrol!", note: 523 },
+    { icon: "🐹", name: "CAPY", words: "Capy Bappy, chill superstar!", note: 392 },
+    { icon: "🥟", name: "DUMPY", words: "Dumpling Supreme with the snack attack!", note: 659 },
+    { icon: "🟢", name: "GLORP", words: "DJ Glorp on the slime beat!", note: 262 },
+  ];
+  const hit = (pad: (typeof pads)[number]) => {
+    setDancer(pad.icon);
+    setHits((items) => [...items, pad.name]);
+    say(pad.words);
+    if (beatRef.current) tone(beatRef.current.audio, pad.note, .16, "sawtooth");
+    else playSound("open", muted);
+  };
+  const rap = () => {
+    setHits((items) => [...items, "RAP"]);
+    setDancer("🤖");
+    say("Axo on patrol. Capy got the glow. Dumpling in the slime beat. Brave heart, let's go!");
+  };
+
+  return <QuestShell title="Chaos Beat Lab" subtitle="Make a house beat. Drop a silly rap." icon="🎛️">
+    <div className={`beat-stage ${playing ? "playing" : ""}`}>
+      <div className="equalizer">{[1,2,3,4,5,6,7,8,9].map((n) => <i key={n} />)}</div>
+      <div className="dj">{dancer}<span>🎧</span></div>
+      <h2>{playing ? "HOUSE MODE: BUSSIN’" : "DJ GLORP IS READY"}</h2>
+      <div className="beat-buttons"><button className="primary" onClick={playing ? stopBeat : startBeat}>{playing ? "⏹ STOP BEAT" : "▶ START HOUSE BEAT"}</button><button className="secondary" onClick={rap}>🎤 DROP THE SILLY RAP</button></div>
+      {muted && <p className="muted-note">🔇 Turn sound on at the top to use the beat.</p>}
+    </div>
+    <div className="sample-pads">{pads.map((pad) => <button key={pad.name} onClick={() => hit(pad)}><span>{pad.icon}</span><strong>{pad.name}</strong><small>TAP PAD</small></button>)}</div>
+    <p className="original-music-note">🎵 This is an original beat made inside Brave Blocks.</p>
+    {hits.length >= 4 && <button className="primary center" onClick={() => { stopBeat(); earn(); }}>MIX COMPLETE · GET LOOT →</button>}
+  </QuestShell>;
+}
+
+function FaithQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+  const stories = [
+    { icon: "🧒", title: "Jesus + Children", story: "Jesus made time for children. He showed them they matter and belong.", gem: "I matter." },
+    { icon: "🐑", title: "The Lost Sheep", story: "The shepherd looked for one little sheep. Every single one mattered.", gem: "I am worth finding." },
+    { icon: "🪨", title: "David + Goliath", story: "David was small. His courage and God’s help were bigger than his fear.", gem: "Small can be brave." },
+    { icon: "🌈", title: "Noah’s Rainbow", story: "After a long storm, the rainbow was a sign of hope.", gem: "Hard times can end." },
+  ];
+  const [opened, setOpened] = useState<string[]>([]);
+  const [story, setStory] = useState<(typeof stories)[number] | null>(null);
+  const openStory = (item: (typeof stories)[number]) => {
+    playSound("open", muted);
+    setStory(item);
+    setOpened((items) => items.includes(item.title) ? items : [...items, item.title]);
+    say(`${item.title}. ${item.story} ${item.gem}`);
+  };
+  return <QuestShell title="Faith Campfire" subtitle="Tap a story. Find a hope gem." icon="✨">
+    <div className="campfire">
+      <div className="night-stars">✦　·　✧　　✦　·　✧　　✦</div>
+      <div className="fire">🔥</div>
+      <div className="camp-crew">🦎　🐹　🥟　🟢</div>
+      <h2>BIBLE STORY CAMP</h2>
+      <div className="camp-buttons">
+        <button onClick={() => say("Jesus loves me. I am loved on easy days and hard days.")}>🔊 JESUS LOVES ME</button>
+        <a href="https://www.youtube.com/watch?v=ILEdpepg7D0" target="_blank" rel="noopener noreferrer">▶ FAVORITE SONG: BETTER IS ONE DAY</a>
+      </div>
+    </div>
+    <div className="story-grid">{stories.map((item) => <button key={item.title} className={story?.title === item.title ? "story-card active" : "story-card"} onClick={() => openStory(item)}>
+      <span>{item.icon}</span><strong>{item.title}</strong><small>{opened.includes(item.title) ? "GEM FOUND ✓" : "TAP STORY"}</small>
+    </button>)}</div>
+    {story && <div className="story-scroll"><small>HOPE GEM UNLOCKED</small><span>{story.icon}</span><h3>{story.title}</h3><p>{story.story}</p><strong>💎 {story.gem}</strong><button onClick={() => say(`${story.story} ${story.gem}`)}>🔊 HEAR AGAIN</button></div>}
+    <div className="faith-affirmation"><span>💛</span><p><strong>Jesus loves me.</strong><br />I can tell the truth. I can ask for help. All my feelings can come to the campfire.</p></div>
+    {opened.length >= 2 && <button className="primary center" onClick={earn}>COLLECT HOPE LOOT →</button>}
+  </QuestShell>;
+}
+
+function FireInstallGuide({ onClose }: { onClose: () => void }) {
+  return <div className="install-modal" role="dialog" aria-modal="true" aria-label="Install Brave Blocks on a Fire tablet">
+    <div className="install-sheet">
+      <button className="install-close" onClick={onClose} aria-label="Close">×</button>
+      <span className="fire-tablet">📲</span>
+      <small>GROWN-UP SETUP</small>
+      <h2>Fire Tablet Setup</h2>
+      <ol>
+        <li><b>Open Amazon Silk</b><span>Open the public Brave Blocks review link.</span></li>
+        <li><b>Come back to this button</b><span>Tap “Put Brave Blocks on the Fire Tablet” again.</span></li>
+        <li><b>Use Install or Add to Home</b><span>If Silk shows that option, confirm it. Brave Blocks will get its own icon.</span></li>
+        <li><b>If Silk has no install option</b><span>Bookmark Brave Blocks. Silk can reopen the last page, so it still works like a one-tap game.</span></li>
+      </ol>
+      <div className="offline-note"><strong>OFFLINE TIP</strong><p>After installation, open the game online twice. That gives the tablet a chance to save the game for basic offline play.</p></div>
+      <p className="install-private">🔐 This review edition does not save or send a child’s game choices.</p>
+      <button className="primary" onClick={onClose}>GOT IT ✓</button>
+    </div>
+  </div>;
+}
+
+function GrownupGuide() {
+  return <QuestShell title="Grown-up Guide" subtitle="Keep the fun child-led and the child’s answers their own." icon="🔑">
+    <div className="review-checklist">
+      <small>WRAP TEAM REVIEW</small>
+      <h2>What should the care team notice?</h2>
+      <ul>
+        <li>Does the language feel neutral, concrete, and right for an early reader?</li>
+        <li>Could any activity feel leading, activating, or too close to a forensic interview?</li>
+        <li>Which coping choices match the child’s existing safety and regulation plans?</li>
+        <li>What should be added, simplified, or removed before the child uses it?</li>
+      </ul>
+      <p>Please share observations with the caregiver outside this game. This preview does not collect responses.</p>
+    </div>
+    <div className="guide-grid">
+      <article><span>🧭</span><h3>Follow, don’t lead</h3><p>Let the child choose. Reflect their exact words without suggesting feelings, facts, people, or outcomes.</p></article>
+      <article><span>🫶</span><h3>Connection first</h3><p>Play for 5–10 minutes. Stop if he becomes flooded, frozen, avoidant, or simply wants to stop.</p></article>
+      <article><span>🔐</span><h3>Protect privacy</h3><p>Do not ask the child to report what they told their attorney. Have each professional explain their role and privacy limits directly.</p></article>
+      <article><span>🌱</span><h3>Welcome loyalty</h3><p>He can love, miss, fear, or feel angry with anyone while also loving and attaching to you.</p></article>
+      <article><span>🗣️</span><h3>Helpful phrases</h3><p>“All feelings are allowed.” “You don’t have to fix grown-up feelings.” “I’ll love you after any answer.”</p></article>
+      <article><span>🤝</span><h3>Share the tool</h3><p>Let the child’s clinician, attorney, and social worker adjust meeting language for the child’s developmental needs.</p></article>
+      <article><span>✨</span><h3>Faith without pressure</h3><p>Use the Bible campfire only when the child wants it. Keep God’s love unconditional; never connect legal outcomes or difficult feelings to faithfulness.</p></article>
+      <article><span>🎵</span><h3>Familiar music</h3><p>The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play.</p></article>
+      <article><span>👐</span><h3>Safe, not suppressed</h3><p>Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.</p></article>
+      <article><span>🛡️</span><h3>Safety plan</h3><p>If anyone is in immediate danger, move people and unsafe objects apart, get help, and follow the safety plan made with his clinician or pediatrician.</p></article>
+    </div>
+    <div className="professional-note"><strong>Important:</strong> Brave Blocks supports play and practice. It is not therapy, a forensic interview, or legal advice.</div>
+  </QuestShell>;
+}
+
+function QuestShell({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: string; children: React.ReactNode }) {
+  return <section className="quest-page">
+    <div className="quest-heading"><span>{icon}</span><div><small>BRAVE BLOCKS MINIGAME</small><h1>{title}</h1><p>{subtitle}</p></div><button className="read-button" onClick={() => say(`${title}. ${subtitle}`)}>🔊<b>HEAR IT</b></button></div>
+    {children}
+  </section>;
+}
+
+export default function HomePage() {
+  const [quest, setQuest] = useState<Quest>("home");
+  const [badges, setBadges] = useState<string[]>([]);
+  const [xp, setXp] = useState(0);
+  const [avatar, setAvatar] = useState("🐲");
+  const [collection, setCollection] = useState<Loot[]>([]);
+  const [loot, setLoot] = useState<Loot | null>(null);
+  const [muted, setMuted] = useState(false);
+  const [claimed, setClaimed] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [showInstall, setShowInstall] = useState(false);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register(`${PUBLIC_BASE}/sw.js`).catch(() => undefined);
+    const capturePrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", capturePrompt);
+    return () => window.removeEventListener("beforeinstallprompt", capturePrompt);
+  }, []);
+
+  const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Glorp Record", faith: "Hope Gem", grownups: "" };
+  const pageWords: Record<Quest, string> = {
+    home: "Welcome back, player. Pick your character. Then pick your next W.",
+    feelings: "Vibe Mixer. Tap every feeling in your mix.",
+    body: "Body Radar. Tap a place. Then scan a clue.",
+    calm: "Dragon Battle. Slow breaths power your shield.",
+    meeting: "Talk Power Up. Pick any words that tell the grown-up what you need.",
+    base: "Build Mode. Tap your support blocks.",
+    safety: "Safety Power Ups. Pick a safe mission for your hands, body, words, and repairs.",
+    parkour: "Pixel Parkour. Tap jump before slime or blocks. Then tap go.",
+    beats: "Chaos Beat Lab. Start the house beat. Then tap the character pads.",
+    faith: "Faith Campfire. Tap a Bible story to find a hope gem.",
+    grownups: "Grown-up guide.",
+  };
+
+  const go = (next: Quest) => { playSound("tap", muted); setQuest(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const earn = () => {
+    const badge = names[quest];
+    const firstWin = badge && !badges.includes(badge);
+    if (firstWin) setBadges((b) => [...b, badge]);
+    setXp((value) => value + (firstWin ? 100 : 25));
+    const prize = lootDrops[Math.floor(Math.random() * lootDrops.length)];
+    setLoot(prize);
+    playSound("win", muted);
+    say(`Quest W. You unlocked ${prize.name}.`);
+  };
+  const closeLoot = () => {
+    if (loot) setCollection((items) => [...items, loot]);
+    setLoot(null); setQuest("home"); window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const claimBonus = () => {
+    if (claimed) return;
+    setClaimed(true); setXp((value) => value + 25); playSound("open", muted); say("Mystery block cracked. Plus twenty five X P. Huge W.");
+  };
+  const installApp = async () => {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === "accepted") {
+        playSound("win", muted);
+        say("Brave Blocks installed. Huge W.");
+        setInstallPrompt(null);
+        return;
+      }
+    }
+    setShowInstall(true);
+  };
+
+  let content: React.ReactNode;
+  if (quest === "feelings") content = <Feelings earn={earn} muted={muted} />;
+  else if (quest === "body") content = <BodyQuest earn={earn} muted={muted} />;
+  else if (quest === "calm") content = <CalmQuest earn={earn} muted={muted} />;
+  else if (quest === "meeting") content = <MeetingQuest earn={earn} muted={muted} />;
+  else if (quest === "base") content = <BaseQuest earn={earn} muted={muted} />;
+  else if (quest === "safety") content = <SafetyQuest earn={earn} muted={muted} />;
+  else if (quest === "parkour") content = <ParkourQuest earn={earn} avatar={avatar} muted={muted} />;
+  else if (quest === "beats") content = <BeatQuest earn={earn} muted={muted} />;
+  else if (quest === "faith") content = <FaithQuest earn={earn} muted={muted} />;
+  else if (quest === "grownups") content = <GrownupGuide />;
+  else content = <Home go={go} avatar={avatar} setAvatar={setAvatar} xp={xp} collection={collection} claimed={claimed} claimBonus={claimBonus} installApp={installApp} />;
+
+  return <main>
+    <header>
+      <button className="brand" onClick={() => go("home")} aria-label="Brave Blocks home"><span>{avatar}</span><strong>BRAVE<br />BLOCKS</strong></button>
+      <div className="game-stats"><XPBar xp={xp} /><div className="badge-bar">{[0,1,2,3,4,5,6,7].map((i) => <PixelHeart key={i} filled={i < badges.length} />)}</div></div>
+      <div className="header-actions">
+        <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}>{muted ? "🔇" : "🔊"}</button>
+        <button className="listen-button" onClick={() => say(pageWords[quest])}>🔊 <span>READ</span></button>
+        <button className="guide-button" onClick={() => go("grownups")}>🔑 <span>GROWN-UPS</span></button>
+      </div>
+    </header>
+    <div className="review-mode" role="note"><strong>WRAP TEAM REVIEW EDITION</strong><span>De-identified professional preview · no responses are saved or sent</span></div>
+    {quest !== "home" && <button className="back" onClick={() => go("home")}>← QUEST MAP</button>}
+    {content}
+    {loot && <Victory loot={loot} avatar={avatar} onClose={closeLoot} />}
+    {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} />}
+    <footer><span>♥</span><strong>ALL FEELINGS = VALID · NO CAP</strong><span>♥</span></footer>
+  </main>;
+}
