@@ -13,6 +13,7 @@ type InstallPromptEvent = Event & {
 };
 const PUBLIC_BASE = "/brave-blocks";
 const ADULT_HOLD_MS = 3000;
+const SKIP_AFFIRMATION = "Skipping is a real move. Still a W.";
 const emojiSegmenter = typeof Intl !== "undefined" && "Segmenter" in Intl
   ? new Intl.Segmenter("en", { granularity: "grapheme" })
   : null;
@@ -193,6 +194,21 @@ function XPBar({ xp }: { xp: number }) {
   </div>;
 }
 
+function RegulationSkip({ onSkip }: { onSkip: () => void }) {
+  return <button
+    type="button"
+    className="regulation-skip"
+    onClick={onSkip}
+    aria-label={`Not today, skip. ${SKIP_AFFIRMATION}`}
+  >
+    <span><PixelIcon icon="⏭️" /></span>
+    <span>
+      <strong>NOT TODAY — SKIP</strong>
+      <small>{SKIP_AFFIRMATION}</small>
+    </span>
+  </button>;
+}
+
 function AdultGateButton({
   className,
   ariaLabel,
@@ -323,13 +339,24 @@ function AdultGateDialog({
   </div>;
 }
 
-function Victory({ loot, avatar, onClose }: { loot: Loot; avatar: string; onClose: () => void }) {
+function Victory({
+  loot, avatar, completionNote, onClose,
+}: {
+  loot: Loot;
+  avatar: string;
+  completionNote: string;
+  onClose: () => void;
+}) {
   return <div className="victory-screen" role="dialog" aria-modal="true" aria-label="Quest complete">
     <div className="confetti" aria-hidden="true">{["■","●","▲","★","■","●","▲","★","■","●","▲","★"].map((x, i) => <i key={i}>{x}</i>)}</div>
     <div className="loot-card">
       <span className="victory-avatar"><PixelIcon icon={avatar} /></span>
       <small>QUEST W · +100 XP</small>
       <h2>YOU COOKED!</h2>
+      {completionNote && <div className="skip-victory-note">
+        <span><PixelIcon icon="⏭️" /></span>
+        <div><strong>{completionNote}</strong><small>No explaining needed.</small></div>
+      </div>}
       <p>Rare loot unlocked:</p>
       <div className="loot-drop"><span><PixelIcon icon={loot.icon} /></span><strong>{loot.name}</strong><em>{loot.line}</em></div>
       <button onClick={onClose}>EQUIP + KEEP PLAYING →</button>
@@ -356,7 +383,9 @@ function VoiceLab({ onClose }: { onClose: () => void }) {
   </div>;
 }
 
-const pauseMoves = [
+type PauseMove = { icon: string; name: string; line: string };
+
+const pauseMoves: PauseMove[] = [
   { icon: "🫧", name: "AXO BUBBLES", line: "Slow in. Longer out. No rush." },
   { icon: "🧱", name: "WALL POWER", line: "Push the wall with safe hands." },
   { icon: "🕳️", name: "QUIET CAVE", line: "Less sound. Less talking. Just pause." },
@@ -364,16 +393,21 @@ const pauseMoves = [
 ];
 
 function PausePortal({ onClose }: { onClose: () => void }) {
-  const [move, setMove] = useState<(typeof pauseMoves)[number] | null>(null);
+  const [move, setMove] = useState<PauseMove | null>(null);
   useEffect(() => {
     stopNarration();
     window.dispatchEvent(new Event("brave-blocks-pause"));
   }, []);
 
-  const choose = (item: (typeof pauseMoves)[number]) => {
+  const choose = (item: PauseMove) => {
     setMove(item);
     if (item.name !== "QUIET CAVE") say(`${item.name}. ${item.line}`);
     else stopNarration();
+  };
+  const skip = () => {
+    stopNarration();
+    setMove({ icon: "⏭️", name: "NOT TODAY — SKIP", line: SKIP_AFFIRMATION });
+    say("Pass unlocked. No explaining needed.");
   };
 
   return <div className="portal-screen pause-screen" role="dialog" aria-modal="true" aria-label="Pause Portal">
@@ -388,6 +422,7 @@ function PausePortal({ onClose }: { onClose: () => void }) {
           <span><PixelIcon icon={item.icon} /></span><strong>{item.name}</strong><small>{item.line}</small>
         </button>)}
       </div>
+      <RegulationSkip onSkip={skip} />
       {move && <div className="pause-result"><span><PixelIcon icon={move.icon} /></span><div><strong>{move.name}</strong><p>{move.line}</p></div></div>}
       <button className="primary" onClick={onClose}>I’M READY / GO BACK →</button>
     </section>
@@ -520,7 +555,7 @@ function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
   </QuestShell>;
 }
 
-function BodyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+function BodyQuest({ earn, skip, muted }: { earn: () => void; skip: () => void; muted: boolean }) {
   const [spot, setSpot] = useState<(typeof bodySpots)[number] | null>(null);
   const [found, setFound] = useState<string[]>([]);
   const scan = (label: string) => {
@@ -542,10 +577,11 @@ function BodyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
     {spot && <div className="sensation-panel"><h3><PixelIcon icon="📡" /> WHAT’S THE CLUE?</h3><div>{spot.sensations.map((s) => <button key={s} className={found.includes(`${spot.label}: ${s}`) ? "chip chosen" : "chip"} onClick={() => scan(`${spot.label}: ${s}`)}>{s}</button>)}<button className="chip" onClick={() => scan(`${spot.label}: something else`)}>something else</button></div></div>}
     {found.length > 0 && <div className="scan-log"><strong>CLUE LOG</strong>{found.map((x) => <span key={x}>✓ {x}</span>)}</div>}
     {found.length >= 2 && <button className="primary center" onClick={earn}>RADAR LOCKED IN · GET LOOT →</button>}
+    <RegulationSkip onSkip={skip} />
   </QuestShell>;
 }
 
-function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+function CalmQuest({ earn, skip, muted }: { earn: () => void; skip: () => void; muted: boolean }) {
   const [running, setRunning] = useState(false);
   const [step, setStep] = useState(0);
   const [won, setWon] = useState(false);
@@ -580,6 +616,11 @@ function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   }, [running, step, muted]);
 
   const start = () => { playSound("open", muted); setWon(false); setStep(0); setRunning(true); };
+  const skipBattle = () => {
+    setRunning(false);
+    stopNarration();
+    skip();
+  };
   return <QuestShell title="Dragon Battle" subtitle="Slow breath = max shield power." icon="🐉">
     <div className={`breath-world ${running ? "breathing" : ""} ${won ? "won" : ""}`}>
       <div className="battle-hud"><span>DRAGON BOSS</span><div><i style={{ width: won ? "0%" : `${100 - (step / calmSteps.length) * 100}%` }} /></div></div>
@@ -599,6 +640,7 @@ function CalmQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
       <div className="shield-charge"><span>SHIELD</span>{[0,1,2,3].map((x) => <i className={won || step > x * 2 ? "charged" : ""} key={x}>◆</i>)}</div>
       <button className="primary" disabled={running} onClick={start}>{running ? "LOCKED IN..." : won ? <PixelText text="REMATCH 🔁" /> : "START BOSS BATTLE"}</button>
       {won && <button className="secondary" onClick={earn}>CLAIM BOSS LOOT →</button>}
+      <RegulationSkip onSkip={skipBattle} />
     </div>
   </QuestShell>;
 }
@@ -851,7 +893,7 @@ function BaseQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   </QuestShell>;
 }
 
-function SafetyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
+function SafetyQuest({ earn, skip, muted }: { earn: () => void; skip: () => void; muted: boolean }) {
   const missions = [
     {
       icon: "👐", title: "HANDS MISSION", prompt: "Big mad energy! Give your hands a safe job.",
@@ -910,6 +952,7 @@ function SafetyQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
       <div className="safety-boss"><span><PixelIcon icon={missions[mission].icon} /></span><div><small>MISSION {mission + 1} / {missions.length}</small><h3>{missions[mission].title}</h3><p>{missions[mission].prompt}</p></div></div>
       <div className="safe-moves">{missions[mission].moves.map((item) => <button key={item.words} disabled={Boolean(move)} className={move?.words === item.words ? "active" : ""} onClick={() => choose(item)}><span><PixelIcon icon={item.icon} /></span><strong>{item.words}</strong></button>)}</div>
       {move && <div className="safe-win"><span><PixelText text="✨ SAFE MOVE · +1 SHIELD ✨" /></span><strong><PixelIcon icon={move.icon} /> {move.words}</strong><p>That keeps you and other people safe. Legendary.</p><button onClick={next}>{mission === missions.length - 1 ? "MAX THE SHIELD →" : "NEXT MISSION →"}</button></div>}
+      <RegulationSkip onSkip={skip} />
     </div>}
     {complete && <div className="safety-complete"><span><PixelIcon icon="👐" /><PixelIcon icon="🛡️" /></span><h2>GENTLE HANDS: LEGENDARY</h2><p>Big feelings are allowed. Safe hands, safe feet, and strong words protect everybody.</p><div>{chosen.map((item) => <i key={item}>✓ {item}</i>)}</div><button className="primary" onClick={earn}>CLAIM SAFETY LOOT →</button></div>}
     <div className="get-help-now"><span><PixelIcon icon="🚨" /></span><p>If you might hurt yourself or someone else, <strong>get a safe grown-up now.</strong> You do not have to handle it alone.</p></div>
@@ -1161,6 +1204,7 @@ export default function HomePage() {
   const [avatar, setAvatar] = useState("🐲");
   const [collection, setCollection] = useState<Loot[]>([]);
   const [loot, setLoot] = useState<Loot | null>(null);
+  const [completionNote, setCompletionNote] = useState("");
   const [muted, setMuted] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
@@ -1201,19 +1245,22 @@ export default function HomePage() {
 
   const go = (next: Quest) => { playSound("tap", muted); setQuest(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const awardXp = (amount: number) => setXp((value) => value + Math.max(0, amount));
-  const earn = () => {
+  const completeQuest = (note = "") => {
     const badge = names[quest];
     const firstWin = badge && !badges.includes(badge);
     if (firstWin) setBadges((b) => [...b, badge]);
     awardXp(firstWin ? 100 : 25);
     const prize = lootDrops[Math.floor(Math.random() * lootDrops.length)];
+    setCompletionNote(note);
     setLoot(prize);
     playSound("win", muted);
-    say(`Quest W. You unlocked ${prize.name}.`);
+    say(note ? "Pass unlocked. No explaining needed." : `Quest W. You unlocked ${prize.name}.`);
   };
+  const earn = () => completeQuest();
+  const skipQuest = () => completeQuest(SKIP_AFFIRMATION);
   const closeLoot = () => {
     if (loot) setCollection((items) => [...items, loot]);
-    setLoot(null); setQuest("home"); window.scrollTo({ top: 0, behavior: "smooth" });
+    setLoot(null); setCompletionNote(""); setQuest("home"); window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const claimBonus = () => {
     if (claimed) return;
@@ -1242,12 +1289,12 @@ export default function HomePage() {
 
   let content: React.ReactNode;
   if (quest === "feelings") content = <Feelings earn={earn} muted={muted} />;
-  else if (quest === "body") content = <BodyQuest earn={earn} muted={muted} />;
-  else if (quest === "calm") content = <CalmQuest earn={earn} muted={muted} />;
+  else if (quest === "body") content = <BodyQuest earn={earn} skip={skipQuest} muted={muted} />;
+  else if (quest === "calm") content = <CalmQuest earn={earn} skip={skipQuest} muted={muted} />;
   else if (quest === "loadout") content = <MeetingLoadout earn={earn} muted={muted} />;
   else if (quest === "meeting") content = <MeetingQuest earn={earn} muted={muted} />;
   else if (quest === "base") content = <BaseQuest earn={earn} muted={muted} />;
-  else if (quest === "safety") content = <SafetyQuest earn={earn} muted={muted} />;
+  else if (quest === "safety") content = <SafetyQuest earn={earn} skip={skipQuest} muted={muted} />;
   else if (quest === "parkour") content = <ParkourQuest earn={earn} avatar={avatar} muted={muted} />;
   else if (quest === "beats") content = <BeatQuest earn={earn} muted={muted} />;
   else if (quest === "faith") content = <FaithQuest earn={earn} muted={muted} />;
@@ -1294,7 +1341,7 @@ export default function HomePage() {
     <div className="review-mode" role="note"><strong>WRAP TEAM REVIEW EDITION</strong><span>De-identified professional preview · no responses are saved or sent</span></div>
     {quest !== "home" && <button className="back" onClick={() => go("home")}>← QUEST MAP</button>}
     {content}
-    {loot && <Victory loot={loot} avatar={avatar} onClose={closeLoot} />}
+    {loot && <Victory loot={loot} avatar={avatar} completionNote={completionNote} onClose={closeLoot} />}
     {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} onInstall={runInstallPrompt} canInstall={Boolean(installPrompt)} />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
     {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
