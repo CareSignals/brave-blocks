@@ -12,6 +12,8 @@
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "narration:generate": "node scripts/generate-narration.mjs",
+    "offline:verify": "node scripts/verify-offline-pack.mjs",
+    "offline:test": "node scripts/test-offline-first-load.mjs",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

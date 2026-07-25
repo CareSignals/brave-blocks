@@ -7,6 +7,7 @@ import narrationIndex from "./narration-index.json";
 type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
 type Loot = { icon: string; name: string; line: string };
 type AdultArea = "guide" | "install";
+type OfflineStatus = "checking" | "caching" | "ready" | "error" | "unsupported";
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -115,6 +116,47 @@ function stopNarration() {
 function setNarrationMuted(muted: boolean) {
   narrationIsMuted = muted;
   if (muted) stopNarration();
+}
+
+function waitForWorkerActivation(worker: ServiceWorker) {
+  if (worker.state === "activated") return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error("Offline pack timed out.")), 8 * 60 * 1000);
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "activated") {
+        window.clearTimeout(timeout);
+        resolve();
+      } else if (worker.state === "redundant") {
+        window.clearTimeout(timeout);
+        reject(new Error("Offline pack could not be installed."));
+      }
+    });
+  });
+}
+
+function requestOfflineStatus(worker: ServiceWorker) {
+  return new Promise<{ status?: string }>((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timeout = window.setTimeout(() => reject(new Error("Offline readiness check timed out.")), 15000);
+    channel.port1.onmessage = (event) => {
+      window.clearTimeout(timeout);
+      resolve(event.data);
+    };
+    worker.postMessage({ type: "BRAVE_BLOCKS_OFFLINE_STATUS" }, [channel.port2]);
+  });
+}
+
+async function prepareOfflinePack(): Promise<OfflineStatus> {
+  if (!("serviceWorker" in navigator)) return "unsupported";
+  const registration = await navigator.serviceWorker.register(`${PUBLIC_BASE}/sw.js`);
+  const changingWorker = registration.installing ?? registration.waiting;
+  if (changingWorker) await waitForWorkerActivation(changingWorker);
+  const readyRegistration = await navigator.serviceWorker.ready;
+  const activeWorker = registration.active ?? readyRegistration.active ?? navigator.serviceWorker.controller;
+  if (!activeWorker) throw new Error("No active offline worker.");
+  const reply = await requestOfflineStatus(activeWorker);
+  if (reply.status !== "ready") throw new Error("Offline pack is incomplete.");
+  return "ready";
 }
 
 function say(text: string) {
@@ -255,6 +297,20 @@ function XPBar({ xp }: { xp: number }) {
   >
     <span><PixelIcon icon="⚡" /> {xp} XP</span>
     <div className="xp-track"><i style={{ width: `${Math.min(100, xp / 5)}%` }} /></div>
+  </div>;
+}
+
+function OfflineReadinessIndicator({ status }: { status: OfflineStatus }) {
+  const copy = {
+    checking: ["Checking offline pack…", "Keep this page connected for a moment."],
+    caching: ["Saving offline pack…", "Keep this page online until the ready message appears."],
+    ready: ["Ready for offline play", "All 10 quests, HEAR IT narration, icons, and built-in sounds are saved."],
+    error: ["Offline pack needs Wi-Fi", "Reconnect, reopen Brave Blocks, and wait for the ready message."],
+    unsupported: ["Offline play is unavailable", "This browser does not support the offline game pack."],
+  }[status];
+  return <div className={`offline-readiness ${status}`} role="status" aria-live="polite">
+    <span aria-hidden="true">●</span>
+    <div><strong>{copy[0]}</strong><small>{copy[1]}</small></div>
   </div>;
 }
 
@@ -1265,10 +1321,12 @@ function FireInstallGuide({
   onClose,
   onInstall,
   canInstall,
+  offlineStatus,
 }: {
   onClose: () => void;
   onInstall: () => void;
   canInstall: boolean;
+  offlineStatus: OfflineStatus;
 }) {
   const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
   return <div
@@ -1285,13 +1343,14 @@ function FireInstallGuide({
       <span className="fire-tablet"><PixelIcon icon="📲" /></span>
       <small>GROWN-UP SETUP</small>
       <h2 id="fire-install-title">Fire Tablet Setup</h2>
+      <OfflineReadinessIndicator status={offlineStatus} />
       <ol>
         <li><b>Open Amazon Silk</b><span>Open the public Brave Blocks review link.</span></li>
         <li><b>Use Install Now if it appears</b><span>That button uses the tablet’s own installation prompt.</span></li>
         <li><b>Use Install or Add to Home</b><span>If Silk shows that option, confirm it. Brave Blocks will get its own icon.</span></li>
         <li><b>If Silk has no install option</b><span>Bookmark Brave Blocks. Silk can reopen the last page, so it still works like a one-tap game.</span></li>
       </ol>
-      <div className="offline-note"><strong>OFFLINE TIP</strong><p>After installation, open the game online twice. That gives the tablet a chance to save the game for basic offline play.</p></div>
+      <div className="offline-note"><strong>OFFLINE TIP</strong><p>Open the game online once and keep it open until the status says “Ready for offline play.” Then turn off Wi-Fi and test a quest, HEAR IT, and the Pause Portal.</p></div>
       <p className="install-private"><PixelIcon icon="🔐" /> This review edition does not save or send a child’s game choices.</p>
       {canInstall && <button className="primary" onClick={onInstall}>INSTALL BRAVE BLOCKS NOW →</button>}
       <button className="primary" onClick={onClose}>GOT IT ✓</button>
@@ -1299,8 +1358,9 @@ function FireInstallGuide({
   </div>;
 }
 
-function GrownupGuide() {
+function GrownupGuide({ offlineStatus }: { offlineStatus: OfflineStatus }) {
   return <QuestShell title="Grown-up Guide" subtitle="Keep the fun child-led and the child’s answers their own." icon="🔑">
+    <OfflineReadinessIndicator status={offlineStatus} />
     <div className="review-checklist">
       <small>WRAP TEAM REVIEW</small>
       <h2>What should the care team notice?</h2>
@@ -1356,9 +1416,10 @@ export default function HomePage() {
   const [showPause, setShowPause] = useState(false);
   const [showVoiceLab, setShowVoiceLab] = useState(false);
   const [adultGateTarget, setAdultGateTarget] = useState<AdultArea | null>(null);
+  const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>("caching");
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register(`${PUBLIC_BASE}/sw.js`).catch(() => undefined);
+    prepareOfflinePack().then(setOfflineStatus).catch(() => setOfflineStatus("error"));
     const capturePrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as InstallPromptEvent);
@@ -1458,7 +1519,7 @@ export default function HomePage() {
   else if (quest === "parkour") content = <ParkourQuest earn={earn} avatar={avatar} muted={muted} />;
   else if (quest === "beats") content = <BeatQuest earn={earn} muted={muted} />;
   else if (quest === "faith") content = <FaithQuest earn={earn} muted={muted} />;
-  else if (quest === "grownups") content = <GrownupGuide />;
+  else if (quest === "grownups") content = <GrownupGuide offlineStatus={offlineStatus} />;
   else content = <Home
     go={go}
     avatar={avatar}
@@ -1503,7 +1564,12 @@ export default function HomePage() {
     {quest !== "home" && <button className="back" onClick={() => go("home")}>← QUEST MAP</button>}
     {content}
     {loot && <Victory loot={loot} avatar={avatar} reward={completionReward} completionNote={completionNote} onClose={closeLoot} />}
-    {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} onInstall={runInstallPrompt} canInstall={Boolean(installPrompt)} />}
+    {showInstall && <FireInstallGuide
+      onClose={() => setShowInstall(false)}
+      onInstall={runInstallPrompt}
+      canInstall={Boolean(installPrompt)}
+      offlineStatus={offlineStatus}
+    />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
     {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
     {adultGateTarget && <AdultGateDialog
