@@ -611,7 +611,7 @@ function PausePortal({ onClose }: { onClose: () => void }) {
 
 function Home({
   go, avatar, setAvatar, xp, collection, claimed, mysteryEgg, claimBonus,
-  requestReset, openInstallSetup, requestInstallCheck,
+  powerKitPicks, togglePowerKitChoice, requestReset, openInstallSetup, requestInstallCheck,
 }: {
   go: (quest: Quest) => void;
   avatar: string;
@@ -621,6 +621,8 @@ function Home({
   claimed: boolean;
   mysteryEgg: EasterEgg | null;
   claimBonus: () => void;
+  powerKitPicks: string[];
+  togglePowerKitChoice: (id: string, label: string) => void;
   requestReset: () => void;
   openInstallSetup: () => void;
   requestInstallCheck: () => void;
@@ -674,10 +676,23 @@ function Home({
     </section>
 
     <details className="power-kit">
-      <summary><span className="power-kit-icon"><PixelIcon icon="🎒" /></span><span className="power-kit-summary-copy"><small>{activeProfile.modeLabel}</small><strong>MY POWER KIT</strong><em>{activeProfile.favoriteComfortTools.length} choices inside</em></span><b>OPEN +</b></summary>
+      <summary><span className="power-kit-icon"><PixelIcon icon="🎒" /></span><span className="power-kit-summary-copy"><small>{activeProfile.modeLabel}</small><strong>MY POWER KIT</strong><em>{powerKitPicks.length ? `${powerKitPicks.length} ready · ${activeProfile.favoriteComfortTools.length} choices` : `${activeProfile.favoriteComfortTools.length} choices inside`}</em></span><b>OPEN +</b></summary>
       <div className="power-kit-panel">
         <p><strong>I have choices when my signal gets big.</strong> I do not have to fix it fast.</p>
-        <ul>{activeProfile.favoriteComfortTools.map((tool) => <li key={tool.id}><PixelIcon icon={tool.icon} /><span>{tool.label}</span></li>)}</ul>
+        <p className="power-kit-picker-help">Tap any that may help. Pick one, many, or none.</p>
+        <ul aria-label="Power Kit choices">{activeProfile.favoriteComfortTools.map((tool) => {
+          const picked = powerKitPicks.includes(tool.id);
+          return <li key={tool.id}><button
+            type="button"
+            className="power-kit-choice"
+            aria-pressed={picked}
+            onClick={() => togglePowerKitChoice(tool.id, tool.label)}
+          >
+            <PixelIcon icon={tool.icon} />
+            <span>{tool.label}</span>
+            <b>{picked ? "READY ✓" : "PICK +"}</b>
+          </button></li>;
+        })}</ul>
         <div className="power-kit-buddy">
           <span><PixelIcon icon={activeProfile.animalCompanion?.icon ?? "🐾"} /></span>
           <p><small>POWER PHRASE</small><strong>“{activeProfile.preferredPhrases[0]}”</strong></p>
@@ -1548,6 +1563,7 @@ export default function HomePage() {
   const [muted, setMuted] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [mysteryEgg, setMysteryEgg] = useState<EasterEgg | null>(null);
+  const [powerKitPicks, setPowerKitPicks] = useState<string[]>([]);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [showPause, setShowPause] = useState(false);
@@ -1645,6 +1661,15 @@ export default function HomePage() {
     playSound("open", muted);
     setShowInstall(true);
   };
+  const togglePowerKitChoice = (id: string, label: string) => {
+    const wasPicked = powerKitPicks.includes(id);
+    const nextCount = wasPicked ? powerKitPicks.length - 1 : powerKitPicks.length + 1;
+    setPowerKitPicks((items) => wasPicked
+      ? items.filter((item) => item !== id)
+      : [...items, id]);
+    setAnnouncement(`${label} ${wasPicked ? "removed from" : "added to"} your Power Kit. ${nextCount} ${nextCount === 1 ? "choice" : "choices"} ready.`);
+    playSound(wasPicked ? "tap" : "open", muted);
+  };
   const unlockAdultArea = (area: AdultArea) => {
     setAdultGateTarget(null);
     if (area === "guide" && IS_REVIEW_EDITION) go("grownups");
@@ -1662,6 +1687,7 @@ export default function HomePage() {
     setCompletionNote("");
     setClaimed(false);
     setMysteryEgg(null);
+    setPowerKitPicks([]);
     setShowPause(false);
     setShowVoiceLab(false);
     setShowReset(false);
@@ -1692,6 +1718,8 @@ export default function HomePage() {
     claimed={claimed}
     mysteryEgg={mysteryEgg}
     claimBonus={claimBonus}
+    powerKitPicks={powerKitPicks}
+    togglePowerKitChoice={togglePowerKitChoice}
     requestReset={() => setShowReset(true)}
     openInstallSetup={() => unlockAdultArea("install")}
     requestInstallCheck={() => setAdultGateTarget("install")}
