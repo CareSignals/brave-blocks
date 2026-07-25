@@ -64,6 +64,12 @@ The service-worker cache key and readiness response include both values. This
 prevents a tablet from reusing an offline cache made for another edition or
 profile.
 
+Each GitHub Pages deployment also injects its commit revision into the service
+worker and cache name. The browser bypasses its HTTP cache when checking the
+worker. A new push therefore installs a new offline app shell and deletes older
+Brave Blocks caches instead of continuing to serve a quest from a prior release.
+An already-open page may need one reload after the new worker finishes installing.
+
 ## Updating profile details
 
 Edit `app/profile.moses.ts`. All personal strings and choices live in that one

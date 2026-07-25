@@ -156,7 +156,7 @@ function waitForWorkerActivation(worker: ServiceWorker) {
 }
 
 function requestOfflineStatus(worker: ServiceWorker) {
-  return new Promise<{ status?: string; edition?: string; profile?: string }>((resolve, reject) => {
+  return new Promise<{ status?: string; edition?: string; profile?: string; revision?: string }>((resolve, reject) => {
     const channel = new MessageChannel();
     const timeout = window.setTimeout(() => reject(new Error("Offline readiness check timed out.")), 15000);
     channel.port1.onmessage = (event) => {
@@ -171,6 +171,7 @@ async function prepareOfflinePack(): Promise<OfflineStatus> {
   if (!("serviceWorker" in navigator)) return "unsupported";
   const registration = await navigator.serviceWorker.register(
     `${PUBLIC_BASE}/sw.js?edition=${BRAVE_BLOCKS_EDITION}&profile=${activeProfile.id.toUpperCase()}`,
+    { updateViaCache: "none" },
   );
   const changingWorker = registration.installing ?? registration.waiting;
   if (changingWorker) await waitForWorkerActivation(changingWorker);

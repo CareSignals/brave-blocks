@@ -4,8 +4,9 @@ const requestedProfile = new URL(self.location.href).searchParams.get("profile")
 const PROFILE = /^[A-Z][A-Z0-9_-]{0,31}$/.test(requestedProfile || "")
   ? requestedProfile
   : "DEFAULT";
+const BUILD_REVISION = "__BRAVE_BLOCKS_BUILD_REVISION__";
 const CACHE_PREFIX = "brave-blocks-";
-const CACHE = `${CACHE_PREFIX}${EDITION.toLowerCase()}-${PROFILE.toLowerCase()}-v11`;
+const CACHE = `${CACHE_PREFIX}${EDITION.toLowerCase()}-${PROFILE.toLowerCase()}-v12-${BUILD_REVISION}`;
 const BASE = "/brave-blocks";
 const READY_URL = `${BASE}/offline-ready.json`;
 const CORE = [
@@ -108,6 +109,7 @@ async function buildOfflinePack() {
       status: "ready",
       edition: EDITION,
       profile: PROFILE,
+      revision: BUILD_REVISION,
       cache: CACHE,
       shellCount,
       iconCount,
@@ -146,7 +148,13 @@ self.addEventListener("message", (event) => {
     const response = await cache.match(READY_URL);
     const status = response
       ? await response.json()
-      : { status: "caching", edition: EDITION, profile: PROFILE, cache: CACHE };
+      : {
+          status: "caching",
+          edition: EDITION,
+          profile: PROFILE,
+          revision: BUILD_REVISION,
+          cache: CACHE,
+        };
     event.ports[0]?.postMessage(status);
   })());
 });

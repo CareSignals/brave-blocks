@@ -159,7 +159,10 @@ test("child choices stay in component memory and are not transmitted or analyzed
   assert.doesNotMatch(pageSource, /\bsendBeacon\b|\bfetch\s*\(|XMLHttpRequest|WebSocket/);
   assert.doesNotMatch(pageSource, /googleAnalytics|gtag\s*\(|analytics\.|telemetry|mixpanel|amplitude/i);
   assert.match(serviceWorker, /profile: PROFILE/);
+  assert.match(serviceWorker, /revision: BUILD_REVISION/);
+  assert.match(serviceWorker, /v12-\$\{BUILD_REVISION\}/);
   assert.match(serviceWorker, /PROFILE\.toLowerCase\(\)/);
+  assert.match(pageSource, /updateViaCache: "none"/);
 });
 
 test("responsive and accessibility safeguards cover small screens and reduced motion", () => {

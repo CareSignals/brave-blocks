@@ -159,6 +159,10 @@ await dispatchExtendable("message", {
 assert.equal(readinessReply?.status, "ready", "Readiness must only report after the complete install.");
 assert.equal(readinessReply?.edition, edition, "Readiness must match the edition being tested.");
 assert.equal(readinessReply?.profile, profile, "Readiness must match the player profile being tested.");
+assert(
+  readinessReply?.revision && readinessReply.revision !== "__BRAVE_BLOCKS_BUILD_REVISION__",
+  "Readiness must identify the finalized build revision.",
+);
 assert.equal(readinessReply?.fonts, "device-local", "Readiness must confirm the offline-safe font strategy.");
 
 online = false;
