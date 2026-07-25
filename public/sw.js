@@ -1,4 +1,4 @@
-const CACHE = "brave-blocks-wrap-review-v4";
+const CACHE = "brave-blocks-wrap-review-v5";
 const BASE = "/brave-blocks";
 const CORE = [`${BASE}/`, `${BASE}/manifest.webmanifest`, `${BASE}/favicon.svg`, `${BASE}/icon-192.png`, `${BASE}/icon-512.png`];
 

@@ -6,11 +6,13 @@ import narrationIndex from "./narration-index.json";
 
 type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
 type Loot = { icon: string; name: string; line: string };
+type AdultArea = "guide" | "install";
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 const PUBLIC_BASE = "/brave-blocks";
+const ADULT_HOLD_MS = 3000;
 const emojiSegmenter = typeof Intl !== "undefined" && "Segmenter" in Intl
   ? new Intl.Segmenter("en", { granularity: "grapheme" })
   : null;
@@ -191,6 +193,136 @@ function XPBar({ xp }: { xp: number }) {
   </div>;
 }
 
+function AdultGateButton({
+  className,
+  ariaLabel,
+  onUnlock,
+  onNeedKeyboardCheck,
+  children,
+}: {
+  className: string;
+  ariaLabel: string;
+  onUnlock: () => void;
+  onNeedKeyboardCheck: () => void;
+  children: React.ReactNode;
+}) {
+  const holdTimer = useRef<number | null>(null);
+  const unlockedByHold = useRef(false);
+  const [holding, setHolding] = useState(false);
+
+  const cancelHold = () => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+    setHolding(false);
+  };
+
+  useEffect(() => () => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+  }, []);
+
+  const startHold = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    cancelHold();
+    unlockedByHold.current = false;
+    setHolding(true);
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null;
+      unlockedByHold.current = true;
+      setHolding(false);
+      onUnlock();
+    }, ADULT_HOLD_MS);
+  };
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (unlockedByHold.current) {
+      unlockedByHold.current = false;
+      return;
+    }
+    onNeedKeyboardCheck();
+  };
+
+  return <button
+    type="button"
+    className={`${className} adult-hold-button${holding ? " holding" : ""}`}
+    aria-label={`${ariaLabel}. Press and hold for 3 seconds. Tap once for the keyboard or screen-reader check.`}
+    onPointerDown={startHold}
+    onPointerUp={cancelHold}
+    onPointerCancel={cancelHold}
+    onPointerLeave={cancelHold}
+    onContextMenu={(event) => event.preventDefault()}
+    onClick={handleClick}
+  >
+    <i className="adult-hold-progress" aria-hidden="true" />
+    {children}
+    <span className="sr-only" aria-live="polite">{holding ? "Keep holding. Grown-up check in progress." : ""}</span>
+  </button>;
+}
+
+function AdultGateDialog({
+  area,
+  onClose,
+  onUnlock,
+}: {
+  area: AdultArea;
+  onClose: () => void;
+  onUnlock: () => void;
+}) {
+  const [answer, setAnswer] = useState("");
+  const [error, setError] = useState("");
+  const areaName = area === "guide" ? "Grown-Up Guide" : "Fire Tablet Setup";
+  const inputId = `adult-check-${area}`;
+
+  const checkAnswer = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (answer.trim() === "24") {
+      setError("");
+      onUnlock();
+      return;
+    }
+    setAnswer("");
+    setError("Not quite. Try again, or close this check.");
+  };
+
+  return <div
+    className="adult-gate-screen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="adult-gate-title"
+    aria-describedby="adult-gate-help"
+    onKeyDown={(event) => {
+      if (event.key === "Escape") onClose();
+    }}
+  >
+    <section className="adult-gate-card">
+      <button className="adult-gate-close" onClick={onClose} aria-label="Close grown-up check">×</button>
+      <span className="adult-gate-icon"><PixelIcon icon="🔑" /></span>
+      <small>GROWN-UP CHECK</small>
+      <h2 id="adult-gate-title">Unlock {areaName}</h2>
+      <p id="adult-gate-help">On a touch screen, close this box and hold the grown-up button for 3 seconds. Keyboard and screen-reader users can answer below.</p>
+      <form className="adult-math-check" onSubmit={checkAnswer}>
+        <label htmlFor={inputId}>Type the answer: What is 6 × 4?</label>
+        <input
+          id={inputId}
+          value={answer}
+          onChange={(event) => {
+            setAnswer(event.target.value);
+            setError("");
+          }}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          autoFocus
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? "adult-gate-error" : undefined}
+        />
+        <button type="submit">CHECK ANSWER →</button>
+        {error && <p id="adult-gate-error" className="adult-gate-error" role="alert">{error}</p>}
+      </form>
+    </section>
+  </div>;
+}
+
 function Victory({ loot, avatar, onClose }: { loot: Loot; avatar: string; onClose: () => void }) {
   return <div className="victory-screen" role="dialog" aria-modal="true" aria-label="Quest complete">
     <div className="confetti" aria-hidden="true">{["■","●","▲","★","■","●","▲","★","■","●","▲","★"].map((x, i) => <i key={i}>{x}</i>)}</div>
@@ -263,7 +395,7 @@ function PausePortal({ onClose }: { onClose: () => void }) {
 }
 
 function Home({
-  go, avatar, setAvatar, xp, collection, claimed, claimBonus, installApp,
+  go, avatar, setAvatar, xp, collection, claimed, claimBonus, openInstallSetup, requestInstallCheck,
 }: {
   go: (quest: Quest) => void;
   avatar: string;
@@ -272,7 +404,8 @@ function Home({
   collection: Loot[];
   claimed: boolean;
   claimBonus: () => void;
-  installApp: () => void;
+  openInstallSetup: () => void;
+  requestInstallCheck: () => void;
 }) {
   const quests = [
     { id: "feelings" as Quest, icon: "🧪", title: "Vibe Mixer", text: "Mix feeling energy", color: "yellow", tag: "COMBO MODE" },
@@ -329,9 +462,14 @@ function Home({
       </button>)}</div>
     </section>
 
-    <button className="install-banner" onClick={installApp}>
-      <span><PixelIcon icon="📲" /></span><div><small>GROWN-UP SETUP</small><strong>PUT BRAVE BLOCKS ON THE FIRE TABLET</strong><em>app icon + full-screen play + basic offline support</em></div><b>SET UP →</b>
-    </button>
+    <AdultGateButton
+      className="install-banner"
+      ariaLabel="Grown-ups: open Fire Tablet setup"
+      onUnlock={openInstallSetup}
+      onNeedKeyboardCheck={requestInstallCheck}
+    >
+      <span><PixelIcon icon="📲" /></span><div><small>GROWN-UP SETUP</small><strong>HOLD 3 SECONDS FOR FIRE TABLET SETUP</strong><em>or tap once for the accessible grown-up check</em></div><b>HOLD →</b>
+    </AdultGateButton>
 
     <section className="quest-section">
       <div className="section-title"><span>✦</span><div><small>THE QUEST MAP</small><h2>Pick your next W</h2></div><span>✦</span></div>
@@ -947,7 +1085,15 @@ function FaithQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
   </QuestShell>;
 }
 
-function FireInstallGuide({ onClose }: { onClose: () => void }) {
+function FireInstallGuide({
+  onClose,
+  onInstall,
+  canInstall,
+}: {
+  onClose: () => void;
+  onInstall: () => void;
+  canInstall: boolean;
+}) {
   return <div className="install-modal" role="dialog" aria-modal="true" aria-label="Install Brave Blocks on a Fire tablet">
     <div className="install-sheet">
       <button className="install-close" onClick={onClose} aria-label="Close">×</button>
@@ -956,12 +1102,13 @@ function FireInstallGuide({ onClose }: { onClose: () => void }) {
       <h2>Fire Tablet Setup</h2>
       <ol>
         <li><b>Open Amazon Silk</b><span>Open the public Brave Blocks review link.</span></li>
-        <li><b>Come back to this button</b><span>Tap “Put Brave Blocks on the Fire Tablet” again.</span></li>
+        <li><b>Use Install Now if it appears</b><span>That button uses the tablet’s own installation prompt.</span></li>
         <li><b>Use Install or Add to Home</b><span>If Silk shows that option, confirm it. Brave Blocks will get its own icon.</span></li>
         <li><b>If Silk has no install option</b><span>Bookmark Brave Blocks. Silk can reopen the last page, so it still works like a one-tap game.</span></li>
       </ol>
       <div className="offline-note"><strong>OFFLINE TIP</strong><p>After installation, open the game online twice. That gives the tablet a chance to save the game for basic offline play.</p></div>
       <p className="install-private"><PixelIcon icon="🔐" /> This review edition does not save or send a child’s game choices.</p>
+      {canInstall && <button className="primary" onClick={onInstall}>INSTALL BRAVE BLOCKS NOW →</button>}
       <button className="primary" onClick={onClose}>GOT IT ✓</button>
     </div>
   </div>;
@@ -1020,6 +1167,7 @@ export default function HomePage() {
   const [showInstall, setShowInstall] = useState(false);
   const [showPause, setShowPause] = useState(false);
   const [showVoiceLab, setShowVoiceLab] = useState(false);
+  const [adultGateTarget, setAdultGateTarget] = useState<AdultArea | null>(null);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register(`${PUBLIC_BASE}/sw.js`).catch(() => undefined);
@@ -1070,18 +1218,25 @@ export default function HomePage() {
     if (claimed) return;
     setClaimed(true); setXp((value) => value + 25); playSound("open", muted); say("Mystery block cracked. Plus twenty five X P. Huge W.");
   };
-  const installApp = async () => {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const choice = await installPrompt.userChoice;
-      if (choice.outcome === "accepted") {
-        playSound("win", muted);
-        say("Brave Blocks installed. Huge W.");
-        setInstallPrompt(null);
-        return;
-      }
+  const runInstallPrompt = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") {
+      playSound("win", muted);
+      say("Brave Blocks installed. Huge W.");
+      setInstallPrompt(null);
+      setShowInstall(false);
     }
+  };
+  const openInstallSetup = () => {
+    playSound("open", muted);
     setShowInstall(true);
+  };
+  const unlockAdultArea = (area: AdultArea) => {
+    setAdultGateTarget(null);
+    if (area === "guide") go("grownups");
+    else openInstallSetup();
   };
 
   let content: React.ReactNode;
@@ -1096,7 +1251,17 @@ export default function HomePage() {
   else if (quest === "beats") content = <BeatQuest earn={earn} muted={muted} />;
   else if (quest === "faith") content = <FaithQuest earn={earn} muted={muted} />;
   else if (quest === "grownups") content = <GrownupGuide />;
-  else content = <Home go={go} avatar={avatar} setAvatar={setAvatar} xp={xp} collection={collection} claimed={claimed} claimBonus={claimBonus} installApp={installApp} />;
+  else content = <Home
+    go={go}
+    avatar={avatar}
+    setAvatar={setAvatar}
+    xp={xp}
+    collection={collection}
+    claimed={claimed}
+    claimBonus={claimBonus}
+    openInstallSetup={() => unlockAdultArea("install")}
+    requestInstallCheck={() => setAdultGateTarget("install")}
+  />;
 
   return <main>
     <header>
@@ -1106,16 +1271,28 @@ export default function HomePage() {
         <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}><PixelIcon icon={muted ? "🔇" : "🔊"} /></button>
         <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Pixel Quest Host narrator"><PixelIcon icon="🎮" /><span>VOICE</span></button>
         <button className="listen-button" onClick={() => say(pageWords[quest])}><PixelIcon icon="🔊" /> <span>READ</span></button>
-        <button className="guide-button" onClick={() => go("grownups")}><PixelIcon icon="🔑" /> <span>GROWN-UPS</span></button>
+        <AdultGateButton
+          className="guide-button"
+          ariaLabel="Grown-ups: open the Grown-Up Guide"
+          onUnlock={() => unlockAdultArea("guide")}
+          onNeedKeyboardCheck={() => setAdultGateTarget("guide")}
+        >
+          <PixelIcon icon="🔑" /> <span>GROWN-UPS · HOLD 3 SEC</span>
+        </AdultGateButton>
       </div>
     </header>
     <div className="review-mode" role="note"><strong>WRAP TEAM REVIEW EDITION</strong><span>De-identified professional preview · no responses are saved or sent</span></div>
     {quest !== "home" && <button className="back" onClick={() => go("home")}>← QUEST MAP</button>}
     {content}
     {loot && <Victory loot={loot} avatar={avatar} onClose={closeLoot} />}
-    {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} />}
+    {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} onInstall={runInstallPrompt} canInstall={Boolean(installPrompt)} />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
     {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
+    {adultGateTarget && <AdultGateDialog
+      area={adultGateTarget}
+      onClose={() => setAdultGateTarget(null)}
+      onUnlock={() => unlockAdultArea(adultGateTarget)}
+    />}
     <button className="pause-portal-button" onClick={() => setShowPause(true)} aria-label="Open Pause Portal"><span><PixelIcon icon="⏸️" /></span><strong>PAUSE PORTAL</strong></button>
     <footer><span><PixelIcon icon="♥" /></span><strong>ALL FEELINGS = VALID · NO CAP</strong><span><PixelIcon icon="♥" /></span></footer>
   </main>;

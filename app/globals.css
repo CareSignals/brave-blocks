@@ -1500,6 +1500,162 @@ button,a{
 }
 .camp-crew{display:flex;justify-content:center;gap:.45em}
 
+/* ACCESSIBLE GROWN-UP GATE
+   Touch and mouse users hold for three seconds. A single activation opens
+   the keyboard and screen-reader math check without revealing adult copy. */
+.adult-hold-button{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
+.adult-hold-button>*:not(.adult-hold-progress){
+  position:relative;
+  z-index:1;
+}
+.adult-hold-progress{
+  position:absolute;
+  z-index:0;
+  inset:0 auto 0 0;
+  width:0;
+  margin:0;
+  background:linear-gradient(90deg,rgba(255,239,76,.3),rgba(79,246,255,.72));
+  pointer-events:none;
+}
+.adult-hold-button.holding{
+  transform:translate(2px,2px);
+  box-shadow:3px 3px 0 #090b2d,0 0 22px #47efff;
+}
+.adult-hold-button.holding .adult-hold-progress{
+  animation:adult-hold-fill 3s linear forwards;
+}
+@keyframes adult-hold-fill{to{width:100%}}
+
+.adult-gate-screen{
+  position:fixed;
+  z-index:180;
+  inset:0;
+  display:grid;
+  place-items:center;
+  padding:16px;
+  overflow:auto;
+  background:rgba(7,8,37,.92);
+}
+.adult-gate-card{
+  position:relative;
+  width:min(560px,100%);
+  padding:28px;
+  color:#11143f;
+  text-align:center;
+  background:linear-gradient(160deg,#effdff,#fff1a8);
+  border:5px solid #090b2d;
+  box-shadow:10px 10px 0 #6b2ed4,0 0 40px rgba(60,231,255,.48);
+}
+.adult-gate-close{
+  position:absolute;
+  top:9px;
+  right:9px;
+  width:44px;
+  height:44px;
+  padding:0;
+  color:#11143f;
+  background:#fff;
+  border:3px solid #090b2d;
+  box-shadow:3px 3px 0 #090b2d;
+  font-size:28px;
+  font-weight:900;
+  cursor:pointer;
+}
+.adult-gate-icon{
+  display:block;
+  margin:0 auto 4px;
+  font-size:62px;
+}
+.adult-gate-card>small{
+  color:#5d37a7;
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:2px;
+}
+.adult-gate-card h2{
+  margin:7px 36px 10px;
+  font-size:34px;
+  line-height:1.12;
+}
+.adult-gate-card>p{
+  max-width:470px;
+  margin:0 auto 18px;
+  font-size:17px;
+  font-weight:800;
+  line-height:1.5;
+}
+.adult-math-check{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  padding:17px;
+  text-align:left;
+  background:#171a52;
+  border:4px solid #090b2d;
+  box-shadow:5px 5px 0 #090b2d;
+}
+.adult-math-check label{
+  grid-column:1/-1;
+  color:#fff;
+  font-size:20px;
+  font-weight:900;
+}
+.adult-math-check input{
+  width:100%;
+  min-height:56px;
+  padding:8px 12px;
+  color:#11143f;
+  background:#fff;
+  border:3px solid #61efff;
+  border-radius:0;
+  font:900 25px/1 "Trebuchet MS",Arial,sans-serif;
+}
+.adult-math-check button{
+  min-height:56px;
+  padding:10px 16px;
+  color:#11143f;
+  background:#ffe44e;
+  border:3px solid #090b2d;
+  box-shadow:3px 3px 0 #090b2d;
+  font-weight:900;
+  cursor:pointer;
+}
+.adult-math-check input:focus-visible,
+.adult-math-check button:focus-visible,
+.adult-gate-close:focus-visible{
+  outline:4px solid #ff4fc7;
+  outline-offset:3px;
+}
+.adult-gate-error{
+  grid-column:1/-1;
+  margin:4px 0 0;
+  padding:9px;
+  color:#11143f;
+  background:#ffb4b4;
+  border:2px solid #090b2d;
+  font-weight:900;
+}
+
+@media(max-width:520px){
+  .adult-gate-screen{padding:10px}
+  .adult-gate-card{padding:60px 13px 18px}
+  .adult-gate-card h2{margin:5px 0 9px;font-size:28px}
+  .adult-gate-card>p{font-size:16px}
+  .adult-math-check{grid-template-columns:1fr;padding:12px}
+  .adult-math-check label,.adult-math-check button{grid-column:1}
+  .adult-math-check button{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .adult-hold-button.holding .adult-hold-progress{width:100%;opacity:.45}
+}
+
 /* MOBILE BOTTOM DOCK
    Keep the safety control reachable without covering the privacy note or
    forcing the footer message into an awkward wrap. */
