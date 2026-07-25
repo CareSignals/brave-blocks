@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import narrationIndex from "./narration-index.json";
+import narrationIndex from "@edition-narration";
+import editionContent from "@edition-content";
+import { BRAVE_BLOCKS_EDITION, IS_REVIEW_EDITION } from "./edition";
 
 type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
 type Loot = { icon: string; name: string; line: string };
@@ -90,8 +92,8 @@ const supportBlocks = [
   { icon: "🧸", label: "Cozy thing" },
   { icon: "🐾", label: "Animal" },
   { icon: "🏫", label: "School helper" },
-  { icon: "🧑‍⚕️", label: "Counselor" },
   { icon: "⭐", label: "My person" },
+  ...editionContent.supportBlocks,
 ];
 const calmSteps = [
   { label: "BREATHE IN", time: 4000 }, { label: "HOLD", time: 2000 },
@@ -135,7 +137,7 @@ function waitForWorkerActivation(worker: ServiceWorker) {
 }
 
 function requestOfflineStatus(worker: ServiceWorker) {
-  return new Promise<{ status?: string }>((resolve, reject) => {
+  return new Promise<{ status?: string; edition?: string }>((resolve, reject) => {
     const channel = new MessageChannel();
     const timeout = window.setTimeout(() => reject(new Error("Offline readiness check timed out.")), 15000);
     channel.port1.onmessage = (event) => {
@@ -148,14 +150,18 @@ function requestOfflineStatus(worker: ServiceWorker) {
 
 async function prepareOfflinePack(): Promise<OfflineStatus> {
   if (!("serviceWorker" in navigator)) return "unsupported";
-  const registration = await navigator.serviceWorker.register(`${PUBLIC_BASE}/sw.js`);
+  const registration = await navigator.serviceWorker.register(
+    `${PUBLIC_BASE}/sw.js?edition=${BRAVE_BLOCKS_EDITION}`,
+  );
   const changingWorker = registration.installing ?? registration.waiting;
   if (changingWorker) await waitForWorkerActivation(changingWorker);
   const readyRegistration = await navigator.serviceWorker.ready;
   const activeWorker = registration.active ?? readyRegistration.active ?? navigator.serviceWorker.controller;
   if (!activeWorker) throw new Error("No active offline worker.");
   const reply = await requestOfflineStatus(activeWorker);
-  if (reply.status !== "ready") throw new Error("Offline pack is incomplete.");
+  if (reply.status !== "ready" || reply.edition !== BRAVE_BLOCKS_EDITION) {
+    throw new Error("Offline pack is incomplete or belongs to another edition.");
+  }
   return "ready";
 }
 
@@ -407,7 +413,7 @@ function AdultGateDialog({
   const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
-  const areaName = area === "guide" ? "Grown-Up Guide" : "Fire Tablet Setup";
+  const areaName = area === "guide" ? editionContent.grownupGateName : "Fire Tablet Setup";
   const inputId = `adult-check-${area}`;
 
   const checkAnswer = (event: React.FormEvent<HTMLFormElement>) => {
@@ -919,18 +925,7 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
       options: [{ icon: "✋", label: "Hand up" }, { icon: "🟨", label: "Yellow card" }, { icon: "⏸️", label: "Say pause" }, { icon: "👀", label: "Look at my person" }],
     },
   ];
-  const people = [
-    {
-      icon: "⚖️",
-      name: "ATTORNEY",
-      line: "My job is to listen and explain my role. Ask me what I keep private and what I may share.",
-    },
-    {
-      icon: "🧑‍💼",
-      name: "SOCIAL WORKER",
-      line: "My job is to check how things are going. Ask me what I write down or share.",
-    },
-  ];
+  const people = editionContent.meeting.people;
   const modes = [
     { id: "say", icon: "🗣️", label: "SAY IT" },
     { id: "point", icon: "👉", label: "POINT" },
@@ -956,11 +951,11 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
     <div className="loadout-rule"><span><PixelIcon icon="🛡️" /></span><div><small>PLAYER RULE</small><h2>YOU CAN SAY IT, POINT, DRAW, OR PASS.</h2><p>No guessing. No choosing sides. No answer earns more points than another.</p></div></div>
 
     <section className="npc-intros">
-      <div className="mini-title"><small>MEET THE NPCs</small><h3>Ask what their job means</h3></div>
+      <div className="mini-title"><small>{editionContent.meeting.kicker}</small><h3>{editionContent.meeting.heading}</h3></div>
       <div className="npc-intro-grid">{people.map((person) => <article key={person.name}>
-        <span><PixelIcon icon={person.icon} /></span><div><strong>{person.name}</strong><p>{person.line}</p><button onClick={() => say(`${person.name}. ${person.line}`)}><PixelIcon icon="🔊" /> HEAR INTRO</button></div>
+        <span><PixelIcon icon={person.icon} /></span><div><strong>{person.name}</strong><p>{person.line}</p><button onClick={() => say(person.spoken)}><PixelIcon icon="🔊" /> {editionContent.meeting.listenLabel}</button></div>
       </article>)}</div>
-      <p className="pro-script-note">Grown-up note: these are placeholders. Each professional should approve their own role and privacy wording.</p>
+      {editionContent.meeting.note && <p className="pro-script-note">{editionContent.meeting.note}</p>}
     </section>
 
     <section className="loadout-builder">
@@ -1345,13 +1340,13 @@ function FireInstallGuide({
       <h2 id="fire-install-title">Fire Tablet Setup</h2>
       <OfflineReadinessIndicator status={offlineStatus} />
       <ol>
-        <li><b>Open Amazon Silk</b><span>Open the public Brave Blocks review link.</span></li>
+        <li><b>Open Amazon Silk</b><span>{editionContent.installLink}</span></li>
         <li><b>Use Install Now if it appears</b><span>That button uses the tablet’s own installation prompt.</span></li>
         <li><b>Use Install or Add to Home</b><span>If Silk shows that option, confirm it. Brave Blocks will get its own icon.</span></li>
         <li><b>If Silk has no install option</b><span>Bookmark Brave Blocks. Silk can reopen the last page, so it still works like a one-tap game.</span></li>
       </ol>
       <div className="offline-note"><strong>OFFLINE TIP</strong><p>Open the game online once and keep it open until the status says “Ready for offline play.” Then turn off Wi-Fi and test a quest, HEAR IT, and the Pause Portal.</p></div>
-      <p className="install-private"><PixelIcon icon="🔐" /> This review edition does not save or send a child’s game choices.</p>
+      <p className="install-private"><PixelIcon icon="🔐" /> {editionContent.installPrivacy}</p>
       {canInstall && <button className="primary" onClick={onInstall}>INSTALL BRAVE BLOCKS NOW →</button>}
       <button className="primary" onClick={onClose}>GOT IT ✓</button>
     </div>
@@ -1359,36 +1354,20 @@ function FireInstallGuide({
 }
 
 function GrownupGuide({ offlineStatus }: { offlineStatus: OfflineStatus }) {
-  return <QuestShell title="Grown-up Guide" subtitle="Keep the fun child-led and the child’s answers their own." icon="🔑">
+  const guide = editionContent.grownupGuide;
+  if (!guide) return null;
+  return <QuestShell title={guide.title} subtitle={guide.subtitle} icon="🔑">
     <OfflineReadinessIndicator status={offlineStatus} />
     <div className="review-checklist">
-      <small>WRAP TEAM REVIEW</small>
-      <h2>What should the care team notice?</h2>
-      <ul>
-        <li>Does the language feel neutral, concrete, and right for an early reader?</li>
-        <li>Could any activity feel leading, activating, or too close to a forensic interview?</li>
-        <li>Which coping choices match the child’s existing safety and regulation plans?</li>
-        <li>Should the Pause Portal or Meeting Loadout choices be renamed for this child?</li>
-        <li>Can each professional approve the wording that describes their role and privacy limits?</li>
-        <li>What should be added, simplified, or removed before the child uses it?</li>
-      </ul>
-      <p>Please share observations with the caregiver outside this game. This preview does not collect responses.</p>
+      <small>{guide.kicker}</small>
+      <h2>{guide.heading}</h2>
+      <ul>{guide.checklist.map((item) => <li key={item}>{item}</li>)}</ul>
+      <p>{guide.checklistNote}</p>
     </div>
-    <div className="guide-grid">
-      <article><span><PixelIcon icon="🧭" /></span><h3>Follow, don’t lead</h3><p>Let the child choose. Reflect their exact words without suggesting feelings, facts, people, or outcomes.</p></article>
-      <article><span><PixelIcon icon="🫶" /></span><h3>Connection first</h3><p>Play for 5–10 minutes. Stop if he becomes flooded, frozen, avoidant, or simply wants to stop.</p></article>
-      <article><span><PixelIcon icon="🔐" /></span><h3>Protect privacy</h3><p>Do not ask the child to report what they told their attorney. Have each professional explain their role and privacy limits directly.</p></article>
-      <article><span><PixelIcon icon="🌱" /></span><h3>Welcome loyalty</h3><p>He can love, miss, fear, or feel angry with anyone while also loving and attaching to you.</p></article>
-      <article><span><PixelIcon icon="🗣️" /></span><h3>Helpful phrases</h3><p>“All feelings are allowed.” “You don’t have to fix grown-up feelings.” “I’ll love you after any answer.”</p></article>
-      <article><span><PixelIcon icon="🤝" /></span><h3>Share the tool</h3><p>Let the child’s clinician, attorney, and social worker adjust meeting language for the child’s developmental needs.</p></article>
-      <article><span><PixelIcon icon="✨" /></span><h3>Faith without pressure</h3><p>Use the Bible campfire only when the child wants it. Keep God’s love unconditional; never connect legal outcomes or difficult feelings to faithfulness.</p></article>
-      <article><span><PixelIcon icon="🎵" /></span><h3>Familiar music</h3><p>The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play.</p></article>
-      <article><span><PixelIcon icon="👐" /></span><h3>Safe, not suppressed</h3><p>Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.</p></article>
-      <article><span><PixelIcon icon="🛡️" /></span><h3>Safety plan</h3><p>If anyone is in immediate danger, move people and unsafe objects apart, get help, and follow the safety plan made with his clinician or pediatrician.</p></article>
-      <article><span><PixelIcon icon="🎙️" /></span><h3>Original voice only</h3><p>The prerecorded narrator sounds consistent across devices and does not imitate a celebrity, artist, influencer, or copyrighted character.</p></article>
-      <article><span><PixelIcon icon="⏭️" /></span><h3>Passing still counts</h3><p>Reward practicing a choice—not disclosure, agreement, or a particular feeling. “Pass” should remain a complete and respected response.</p></article>
-    </div>
-    <div className="professional-note"><strong>Important:</strong> Brave Blocks supports play and practice. It is not therapy, a forensic interview, or legal advice.</div>
+    <div className="guide-grid">{guide.cards.map((card) => <article key={card.title}>
+      <span><PixelIcon icon={card.icon} /></span><h3>{card.title}</h3><p>{card.body}</p>
+    </article>)}</div>
+    <div className="professional-note"><strong>{guide.noticeLead}</strong> {guide.noticeBody}</div>
   </QuestShell>;
 }
 
@@ -1445,7 +1424,7 @@ export default function HomePage() {
     parkour: "Pixel Parkour. Tap jump before slime or blocks. Then tap go.",
     beats: "Chaos Beat Lab. Start the house beat. Then tap the character pads.",
     faith: "Faith Campfire. Tap a Bible story to find a hope gem.",
-    grownups: "Grown-up guide.",
+    grownups: editionContent.grownupRouteSpeech,
   };
 
   const focusRouteHeading = () => window.setTimeout(() => {
@@ -1504,7 +1483,7 @@ export default function HomePage() {
   };
   const unlockAdultArea = (area: AdultArea) => {
     setAdultGateTarget(null);
-    if (area === "guide") go("grownups");
+    if (area === "guide" && IS_REVIEW_EDITION) go("grownups");
     else openInstallSetup();
   };
 
@@ -1519,7 +1498,7 @@ export default function HomePage() {
   else if (quest === "parkour") content = <ParkourQuest earn={earn} avatar={avatar} muted={muted} />;
   else if (quest === "beats") content = <BeatQuest earn={earn} muted={muted} />;
   else if (quest === "faith") content = <FaithQuest earn={earn} muted={muted} />;
-  else if (quest === "grownups") content = <GrownupGuide offlineStatus={offlineStatus} />;
+  else if (quest === "grownups" && IS_REVIEW_EDITION) content = <GrownupGuide offlineStatus={offlineStatus} />;
   else content = <Home
     go={go}
     avatar={avatar}
@@ -1552,15 +1531,15 @@ export default function HomePage() {
         <button className="listen-button" aria-label="Read this page aloud" onClick={() => say(pageWords[quest])}><PixelIcon icon="🔊" /> <span>READ</span></button>
         <AdultGateButton
           className="guide-button"
-          ariaLabel="Grown-ups: open the Grown-Up Guide"
-          onUnlock={() => unlockAdultArea("guide")}
-          onNeedKeyboardCheck={() => setAdultGateTarget("guide")}
+          ariaLabel={editionContent.grownupButtonAriaLabel}
+          onUnlock={() => unlockAdultArea(editionContent.grownupButtonTarget)}
+          onNeedKeyboardCheck={() => setAdultGateTarget(editionContent.grownupButtonTarget)}
         >
           <PixelIcon icon="🔑" /> <span>GROWN-UPS · HOLD 3 SEC</span>
         </AdultGateButton>
       </div>
     </header>
-    <div className="review-mode" role="note"><strong>WRAP TEAM REVIEW EDITION</strong><span>De-identified professional preview · no responses are saved or sent</span></div>
+    {editionContent.reviewBanner && <div className="review-mode" role="note"><strong>{editionContent.reviewBanner.title}</strong><span>{editionContent.reviewBanner.subtitle}</span></div>}
     {quest !== "home" && <button className="back" onClick={() => go("home")}>← QUEST MAP</button>}
     {content}
     {loot && <Victory loot={loot} avatar={avatar} reward={completionReward} completionNote={completionNote} onClose={closeLoot} />}

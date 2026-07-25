@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { narrationLines } from "./narration-lines.mjs";
+import { reviewOnlyNarrationLines } from "./edition-policy.mjs";
 
 const VOICE_NAME = process.env.ELEVENLABS_VOICE_NAME ?? "Pixel Quest Host";
 const API_ROOT = "https://api.elevenlabs.io";
@@ -10,6 +11,8 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const audioDirectory = join(root, "public", "audio", "narration");
 const indexPath = join(root, "app", "narration-index.json");
 const publicIndexPath = join(audioDirectory, "index.json");
+const childIndexPath = join(root, "app", "narration-index.child.json");
+const publicChildIndexPath = join(audioDirectory, "child-index.json");
 const apiKey = process.env.ELEVENLABS_API_KEY;
 
 if (!apiKey) {
@@ -117,4 +120,12 @@ for (const [position, text] of narrationLines.entries()) {
   await writeFile(publicIndexPath, `${JSON.stringify(index, null, 2)}\n`);
 }
 
+const childIndex = Object.fromEntries(
+  Object.entries(index).filter(([line]) => !reviewOnlyNarrationLines.has(line)),
+);
+const childIndexOutput = `${JSON.stringify(childIndex, null, 2)}\n`;
+await writeFile(childIndexPath, childIndexOutput);
+await writeFile(publicChildIndexPath, childIndexOutput);
+
 console.log(`Done. Generated ${Object.keys(index).length} narration clips in ${audioDirectory}`);
+console.log(`Child-safe narration index: ${Object.keys(childIndex).length} clips`);

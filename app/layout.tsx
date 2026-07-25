@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { BRAVE_BLOCKS_EDITION, IS_REVIEW_EDITION } from "./edition";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://caresignals.github.io/"),
-  title: "Brave Blocks | WRAP Team Review",
-  description: "A de-identified professional preview of a playful emotional-learning game for an early reader.",
+  title: IS_REVIEW_EDITION ? "Brave Blocks | WRAP Team Review" : "Brave Blocks",
+  description: IS_REVIEW_EDITION
+    ? "A de-identified professional preview of a playful emotional-learning game for an early reader."
+    : "Big feelings, brave words, and playful quests.",
   manifest: "/brave-blocks/manifest.webmanifest",
   applicationName: "Brave Blocks",
   robots: {
@@ -24,19 +27,23 @@ export const metadata: Metadata = {
     shortcut: "/brave-blocks/favicon.svg"
   },
   openGraph: {
-    title: "Brave Blocks | WRAP Team Review",
-    description: "De-identified professional preview: big feelings, brave words, and playful quests.",
+    title: IS_REVIEW_EDITION ? "Brave Blocks | WRAP Team Review" : "Brave Blocks",
+    description: IS_REVIEW_EDITION
+      ? "De-identified professional preview: big feelings, brave words, and playful quests."
+      : "Big feelings, brave words, and playful quests.",
     type: "website",
     images: [{ url: "/brave-blocks/og.png", width: 1672, height: 941, alt: "Brave Blocks game characters on a floating island" }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "Brave Blocks | WRAP Team Review",
-    description: "De-identified professional preview: big feelings, brave words, and playful quests.",
+    title: IS_REVIEW_EDITION ? "Brave Blocks | WRAP Team Review" : "Brave Blocks",
+    description: IS_REVIEW_EDITION
+      ? "De-identified professional preview: big feelings, brave words, and playful quests."
+      : "Big feelings, brave words, and playful quests.",
     images: ["/brave-blocks/og.png"]
   }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en" data-edition={BRAVE_BLOCKS_EDITION.toLowerCase()}><body>{children}</body></html>;
 }

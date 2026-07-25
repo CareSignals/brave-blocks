@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import vm from "node:vm";
+import { currentEdition } from "./edition-policy.mjs";
 
 const root = process.cwd();
 const output = join(root, "out");
 const origin = "https://offline.brave-blocks.test";
 const basePath = "/brave-blocks";
+const edition = currentEdition();
 const handlers = new Map();
 const cacheStores = new Map();
 let online = true;
@@ -88,7 +90,7 @@ async function mockFetch(value) {
 }
 
 const self = {
-  location: { origin },
+  location: { origin, href: `${origin}${basePath}/sw.js?edition=${edition}` },
   clients: { claim: async () => undefined },
   skipWaiting: async () => undefined,
   addEventListener(type, handler) {
@@ -153,6 +155,7 @@ await dispatchExtendable("message", {
   ports: [{ postMessage(value) { readinessReply = value; } }],
 });
 assert.equal(readinessReply?.status, "ready", "Readiness must only report after the complete install.");
+assert.equal(readinessReply?.edition, edition, "Readiness must match the edition being tested.");
 assert.equal(readinessReply?.fonts, "device-local", "Readiness must confirm the offline-safe font strategy.");
 
 online = false;
@@ -198,7 +201,8 @@ const childQuestNames = [...pageSource.matchAll(/(?:if|else if) \(quest === "([^
 assert.equal(new Set(childQuestNames).size, 10, "All 10 child-facing quests must remain in the single offline app shell.");
 
 const questInstructions = [...pageSource.matchAll(/<QuestShell title="([^"]+)" subtitle="([^"]+)"/g)]
-  .map((match) => `${match[1]}. ${match[2]}`);
+  .map((match) => `${match[1]}. ${match[2]}`)
+  .filter((instruction) => edition === "REVIEW" || !instruction.startsWith("Grown-up Guide."));
 for (const instruction of questInstructions) {
   assert(narrationIndex[instruction], `HEAR IT narration is missing from the offline index: ${instruction}`);
   await offlineFetch(`${basePath}/audio/narration/${narrationIndex[instruction]}`);
@@ -226,4 +230,4 @@ console.log(`Offline Pause Portal narration checked: ${pauseNarration.length}`);
 console.log(`Offline icons checked: ${iconNames.length}`);
 console.log(`Offline narration files checked: ${new Set(Object.values(narrationIndex)).size}`);
 console.log(`Offline stylesheet/font assets checked: ${new Set(nestedAssetUrls.map((item) => item.href)).size}`);
-console.log("First-load → offline lifecycle test passed with zero offline network requests.");
+console.log(`${edition} first-load → offline lifecycle test passed with zero offline network requests.`);

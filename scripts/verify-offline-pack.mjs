@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { access, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { currentEdition } from "./edition-policy.mjs";
 
 const root = process.cwd();
 const output = join(root, "out");
 const basePath = "/brave-blocks";
 const origin = "https://offline.brave-blocks.test";
+const edition = currentEdition();
 
 async function exists(path) {
   await access(path);
@@ -73,7 +75,10 @@ const builtIconFiles = new Set((await readdir(join(output, "pixel-icons"))).filt
 assert.deepEqual(builtIconFiles, indexedIconFiles, "Pixel-icon index and built PNG files must match exactly.");
 
 const narrationIndex = JSON.parse(await readFile(join(output, "audio", "narration", "index.json"), "utf8"));
-const sourceNarrationIndex = JSON.parse(await readFile(join(root, "app", "narration-index.json"), "utf8"));
+const sourceNarrationIndex = JSON.parse(await readFile(
+  join(root, "app", edition === "CHILD" ? "narration-index.child.json" : "narration-index.json"),
+  "utf8",
+));
 assert.deepEqual(narrationIndex, sourceNarrationIndex, "The public and application narration indexes must match.");
 const indexedNarrationFiles = new Set(Object.values(narrationIndex));
 const builtNarrationFiles = new Set(
@@ -107,4 +112,4 @@ console.log(`Narration: ${Object.keys(narrationIndex).length} phrases → ${inde
 console.log(fontAssets.length
   ? `Local font files: ${fontAssets.length}`
   : "Fonts: device-local system stack (zero network font requests)");
-console.log("Offline pack verification passed.");
+console.log(`${edition} offline pack verification passed.`);

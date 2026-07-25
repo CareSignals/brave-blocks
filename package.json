@@ -12,6 +12,11 @@
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "narration:generate": "node scripts/generate-narration.mjs",
+    "narration:child-index": "node scripts/generate-child-narration-index.mjs",
+    "edition:finalize": "node scripts/finalize-edition.mjs",
+    "edition:audit": "node scripts/audit-edition.mjs",
+    "pages:build:review": "NEXT_PUBLIC_BRAVE_BLOCKS_EDITION=REVIEW next build --webpack && NEXT_PUBLIC_BRAVE_BLOCKS_EDITION=REVIEW node scripts/finalize-edition.mjs",
+    "pages:build:child": "NEXT_PUBLIC_BRAVE_BLOCKS_EDITION=CHILD next build --webpack && NEXT_PUBLIC_BRAVE_BLOCKS_EDITION=CHILD node scripts/finalize-edition.mjs",
     "offline:verify": "node scripts/verify-offline-pack.mjs",
     "offline:test": "node scripts/test-offline-first-load.mjs",
     "db:generate": "drizzle-kit generate"

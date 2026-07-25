@@ -1,4 +1,7 @@
-const CACHE = "brave-blocks-wrap-review-v9";
+const requestedEdition = new URL(self.location.href).searchParams.get("edition")?.trim().toUpperCase();
+const EDITION = requestedEdition === "CHILD" ? "CHILD" : "REVIEW";
+const CACHE_PREFIX = "brave-blocks-";
+const CACHE = `${CACHE_PREFIX}${EDITION.toLowerCase()}-v10`;
 const BASE = "/brave-blocks";
 const READY_URL = `${BASE}/offline-ready.json`;
 const CORE = [
@@ -99,6 +102,7 @@ async function buildOfflinePack() {
 
     const ready = {
       status: "ready",
+      edition: EDITION,
       cache: CACHE,
       shellCount,
       iconCount,
@@ -121,7 +125,11 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE)
+          .map((key) => caches.delete(key)),
+      ))
       .then(() => self.clients.claim()),
   );
 });
@@ -131,7 +139,9 @@ self.addEventListener("message", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
     const response = await cache.match(READY_URL);
-    const status = response ? await response.json() : { status: "caching", cache: CACHE };
+    const status = response
+      ? await response.json()
+      : { status: "caching", edition: EDITION, cache: CACHE };
     event.ports[0]?.postMessage(status);
   })());
 });
