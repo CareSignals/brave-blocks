@@ -2001,7 +2001,7 @@ canvas:focus-visible,
   cursor:pointer;
 }
 .power-kit summary::-webkit-details-marker{display:none}
-.power-kit summary>span{
+.power-kit summary>.power-kit-icon{
   width:52px;
   height:52px;
   display:grid;
@@ -2363,7 +2363,7 @@ canvas:focus-visible,
 @media(max-width:620px){
   .power-kit{width:calc(100% - 20px)}
   .power-kit summary{grid-template-columns:48px minmax(0,1fr)}
-  .power-kit summary>span{width:46px;height:46px;font-size:27px}
+  .power-kit summary>.power-kit-icon{width:46px;height:46px;font-size:27px}
   .power-kit summary>b{grid-column:1/-1;width:100%}
   .power-kit-panel{padding:14px}
   .power-kit-panel ul{grid-template-columns:1fr}

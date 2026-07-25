@@ -674,7 +674,7 @@ function Home({
     </section>
 
     <details className="power-kit">
-      <summary><span><PixelIcon icon="🎒" /></span><span className="power-kit-summary-copy"><small>{activeProfile.modeLabel}</small><strong>MY POWER KIT</strong><em>{activeProfile.favoriteComfortTools.length} choices inside</em></span><b>OPEN +</b></summary>
+      <summary><span className="power-kit-icon"><PixelIcon icon="🎒" /></span><span className="power-kit-summary-copy"><small>{activeProfile.modeLabel}</small><strong>MY POWER KIT</strong><em>{activeProfile.favoriteComfortTools.length} choices inside</em></span><b>OPEN +</b></summary>
       <div className="power-kit-panel">
         <p><strong>I have choices when my signal gets big.</strong> I do not have to fix it fast.</p>
         <ul>{activeProfile.favoriteComfortTools.map((tool) => <li key={tool.id}><PixelIcon icon={tool.icon} /><span>{tool.label}</span></li>)}</ul>
