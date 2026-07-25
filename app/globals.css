@@ -1771,3 +1771,196 @@ button,a{
     text-wrap:balance;
   }
 }
+
+/* WCAG 2.1 AA ACCESSIBILITY PASS
+   Strong focus, semantic quest cards, contrast-safe labels, and 44px targets. */
+button,
+a[href]{
+  min-height:44px;
+}
+button:focus-visible,
+a[href]:focus-visible,
+input:focus-visible,
+canvas:focus-visible,
+[tabindex]:focus-visible{
+  outline:4px solid #fff33f;
+  outline-offset:3px;
+  box-shadow:0 0 0 7px #090b2d;
+}
+[data-route-heading]:focus{outline:none}
+
+.sound-button,
+.voice-button,
+.listen-button,
+.guide-button{
+  min-width:44px;
+  min-height:44px;
+}
+.portal-close,
+.install-close,
+.adult-gate-close{
+  min-width:44px;
+  min-height:44px;
+}
+
+/* Text over the key art always sits on an opaque, high-contrast panel. */
+.hero-status{background:#111441}
+.key-art-promise{background:#ffe75b}
+.review-mode{color:#11143f}
+
+/* Cyan and white labels no longer rely on bright gradient endpoints. */
+.install-banner{
+  background:linear-gradient(90deg,#3b146f,#641585,#0d3e90);
+}
+.install-banner small{
+  display:inline-block;
+  width:max-content;
+  padding:3px 6px;
+  color:#11143f;
+  background:#8ff5ff;
+  border:2px solid #090b2d;
+}
+.mystery{background:linear-gradient(145deg,#681b91,#35105d)}
+.crew-card>div{
+  min-width:0;
+  padding:7px 9px;
+  color:white;
+  background:#11143f;
+  border:2px solid rgba(255,255,255,.72);
+}
+.crew-card small{color:white}
+.axo-copy small,
+.axo-copy h3{
+  display:inline-block;
+  width:max-content;
+  max-width:100%;
+  padding:4px 7px;
+  color:white;
+  background:#171a52;
+  border:2px solid rgba(255,255,255,.72);
+}
+.axo-copy small{color:#9af8ff}
+.axo-copy h3{margin:5px 0;color:#fff27a}
+.co-op-card{background:linear-gradient(145deg,#24275f,#3b1d70)}
+
+/* The card itself supplies the heading; an invisible full-card button keeps
+   the large tap target without nesting a heading inside a button. */
+.quest-card{
+  cursor:default;
+}
+.quest-card h3{
+  position:relative;
+  z-index:2;
+  margin:0;
+  padding:5px 9px;
+  color:white;
+  background:#0b0d2c;
+  border:2px solid rgba(255,255,255,.7);
+  font-size:22px;
+  line-height:1.2;
+  text-shadow:none;
+}
+.quest-card p{
+  position:relative;
+  z-index:2;
+  min-height:44px;
+  margin:6px 0 0;
+  padding:6px 9px;
+  color:#ecfbff;
+  background:#0b0d2c;
+  border:2px solid rgba(255,255,255,.55);
+  font-size:16px;
+  font-weight:800;
+  line-height:1.35;
+}
+.quest-card em{position:relative;z-index:2}
+.quest-card-action{
+  position:absolute;
+  inset:0;
+  z-index:4;
+  width:100%;
+  height:100%;
+  margin:0;
+  padding:0;
+  color:transparent;
+  background:transparent;
+  border:0;
+  cursor:pointer;
+}
+.quest-card-action:focus-visible{
+  outline:5px solid #fff33f;
+  outline-offset:-9px;
+  box-shadow:inset 0 0 0 9px #090b2d;
+}
+
+.slime-tools>div button{
+  width:44px;
+  height:44px;
+}
+.slime-stamp,
+.slime-clear{
+  min-height:44px;
+  padding:8px 11px;
+  color:#11143f;
+  background:#ffe75b;
+  border:3px solid #090b2d;
+  box-shadow:3px 3px 0 #090b2d;
+  font-weight:900;
+  cursor:pointer;
+}
+.slime-clear{margin-left:0;background:white}
+
+@media(max-width:760px){
+  .quest-page{
+    width:calc(100% - 12px);
+    padding-left:10px;
+    padding-right:10px;
+  }
+  .quest-heading{
+    margin-left:-10px;
+    margin-right:-10px;
+  }
+  .quest-card h3{font-size:21px}
+  .quest-card p{font-size:16px}
+}
+
+@media(max-width:400px){
+  .brand strong{
+    position:absolute;
+    width:1px;
+    height:1px;
+    padding:0;
+    margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+  }
+  .header-actions{gap:4px}
+  .header-actions .sound-button,
+  .header-actions .voice-button,
+  .header-actions .listen-button,
+  .header-actions .guide-button{
+    width:46px;
+    min-width:46px;
+    padding:6px;
+  }
+  .review-mode{padding-left:9px;padding-right:9px}
+  .section-title{gap:8px}
+  .section-title>span{font-size:19px}
+  .quest-page{width:100%;border-left:0;border-right:0}
+  .portal-screen,.install-modal,.adult-gate-screen{padding:8px}
+  .portal-card{padding:62px 12px 18px}
+  .portal-card h2{font-size:34px}
+  .slime-tools{align-items:stretch}
+  .slime-tools>div{flex-wrap:wrap}
+  .slime-stamp,.slime-clear{flex:1 1 130px}
+}
+
+@media(forced-colors:active){
+  .pixel-icon{forced-color-adjust:auto}
+  .quest-card-action,
+  button,
+  a[href]{border:2px solid ButtonText}
+  [aria-pressed="true"]{outline:3px solid Highlight}
+}

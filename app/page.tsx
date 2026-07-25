@@ -132,6 +132,62 @@ function say(text: string) {
   audio.play().catch(release);
 }
 
+function useDialogFocus(onClose: () => void) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.requestAnimationFrame(() => {
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const firstControl = dialog.querySelector<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      (firstControl ?? dialog).focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      returnFocusRef.current?.focus();
+    };
+  }, []);
+
+  const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeRef.current();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const controls = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((element) => element.getClientRects().length > 0);
+    if (!controls.length) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return { dialogRef, onDialogKeyDown };
+}
+
 function playSound(kind: "tap" | "win" | "open", muted: boolean) {
   if (muted || typeof window === "undefined") return;
   const AudioCtor = window.AudioContext ||
@@ -188,7 +244,15 @@ function PixelHeart({ filled }: { filled: boolean }) {
 }
 
 function XPBar({ xp }: { xp: number }) {
-  return <div className="xp-wrap" aria-label={`${xp} brave experience points`}>
+  return <div
+    className="xp-wrap"
+    role="progressbar"
+    aria-label="Brave experience points"
+    aria-valuemin={0}
+    aria-valuemax={500}
+    aria-valuenow={Math.min(xp, 500)}
+    aria-valuetext={`${xp} brave experience points`}
+  >
     <span><PixelIcon icon="⚡" /> {xp} XP</span>
     <div className="xp-track"><i style={{ width: `${Math.min(100, xp / 5)}%` }} /></div>
   </div>;
@@ -284,6 +348,7 @@ function AdultGateDialog({
   onClose: () => void;
   onUnlock: () => void;
 }) {
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
   const areaName = area === "guide" ? "Grown-Up Guide" : "Fire Tablet Setup";
@@ -301,14 +366,14 @@ function AdultGateDialog({
   };
 
   return <div
+    ref={dialogRef}
     className="adult-gate-screen"
     role="dialog"
     aria-modal="true"
     aria-labelledby="adult-gate-title"
     aria-describedby="adult-gate-help"
-    onKeyDown={(event) => {
-      if (event.key === "Escape") onClose();
-    }}
+    tabIndex={-1}
+    onKeyDown={onDialogKeyDown}
   >
     <section className="adult-gate-card">
       <button className="adult-gate-close" onClick={onClose} aria-label="Close grown-up check">×</button>
@@ -340,36 +405,56 @@ function AdultGateDialog({
 }
 
 function Victory({
-  loot, avatar, completionNote, onClose,
+  loot, avatar, reward, completionNote, onClose,
 }: {
   loot: Loot;
   avatar: string;
+  reward: number;
   completionNote: string;
   onClose: () => void;
 }) {
-  return <div className="victory-screen" role="dialog" aria-modal="true" aria-label="Quest complete">
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
+  return <div
+    ref={dialogRef}
+    className="victory-screen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="victory-title"
+    aria-describedby="victory-loot"
+    tabIndex={-1}
+    onKeyDown={onDialogKeyDown}
+  >
     <div className="confetti" aria-hidden="true">{["■","●","▲","★","■","●","▲","★","■","●","▲","★"].map((x, i) => <i key={i}>{x}</i>)}</div>
     <div className="loot-card">
       <span className="victory-avatar"><PixelIcon icon={avatar} /></span>
-      <small>QUEST W · +100 XP</small>
-      <h2>YOU COOKED!</h2>
+      <small>QUEST W · +{reward} XP</small>
+      <h2 id="victory-title">YOU COOKED!</h2>
       {completionNote && <div className="skip-victory-note">
         <span><PixelIcon icon="⏭️" /></span>
         <div><strong>{completionNote}</strong><small>No explaining needed.</small></div>
       </div>}
       <p>Rare loot unlocked:</p>
-      <div className="loot-drop"><span><PixelIcon icon={loot.icon} /></span><strong>{loot.name}</strong><em>{loot.line}</em></div>
+      <div className="loot-drop" id="victory-loot"><span><PixelIcon icon={loot.icon} /></span><strong>{loot.name}</strong><em>{loot.line}</em></div>
       <button onClick={onClose}>EQUIP + KEEP PLAYING →</button>
     </div>
   </div>;
 }
 
 function VoiceLab({ onClose }: { onClose: () => void }) {
-  return <div className="portal-screen" role="dialog" aria-modal="true" aria-label="Choose a Brave Blocks narrator">
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
+  return <div
+    ref={dialogRef}
+    className="portal-screen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="voice-lab-title"
+    tabIndex={-1}
+    onKeyDown={onDialogKeyDown}
+  >
     <section className="portal-card voice-lab">
       <button className="portal-close" onClick={onClose} aria-label="Close narrator choices">×</button>
       <small>ORIGINAL VOICE PACK</small>
-      <h2><PixelIcon icon="🎙️" /> QUEST HOST ONLINE</h2>
+      <h2 id="voice-lab-title"><PixelIcon icon="🎙️" /> QUEST HOST ONLINE</h2>
       <p>This original gaming-adventure narrator is prerecorded, so it sounds the same on the phone, computer, and Fire tablet.</p>
       <div className="voice-grid single">
         <button className="voice-card active" onClick={() => say(NARRATOR_SAMPLE)}>
@@ -393,6 +478,7 @@ const pauseMoves: PauseMove[] = [
 ];
 
 function PausePortal({ onClose }: { onClose: () => void }) {
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
   const [move, setMove] = useState<PauseMove | null>(null);
   useEffect(() => {
     stopNarration();
@@ -410,15 +496,23 @@ function PausePortal({ onClose }: { onClose: () => void }) {
     say("Pass unlocked. No explaining needed.");
   };
 
-  return <div className="portal-screen pause-screen" role="dialog" aria-modal="true" aria-label="Pause Portal">
+  return <div
+    ref={dialogRef}
+    className="portal-screen pause-screen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pause-portal-title"
+    tabIndex={-1}
+    onKeyDown={onDialogKeyDown}
+  >
     <section className="portal-card pause-card">
       <button className="portal-close" onClick={onClose} aria-label="Close Pause Portal">×</button>
       <span className="portal-icon"><PixelIcon icon="⏸️" /></span>
       <small>PAUSE PORTAL UNLOCKED</small>
-      <h2>NO EXPLAINING NEEDED</h2>
+      <h2 id="pause-portal-title">NO EXPLAINING NEEDED</h2>
       <p>Pick one. Point to one. Or just hang here.</p>
       <div className="pause-grid">
-        {pauseMoves.map((item) => <button className={move?.name === item.name ? "pause-move active" : "pause-move"} key={item.name} onClick={() => choose(item)}>
+        {pauseMoves.map((item) => <button aria-pressed={move?.name === item.name} className={move?.name === item.name ? "pause-move active" : "pause-move"} key={item.name} onClick={() => choose(item)}>
           <span><PixelIcon icon={item.icon} /></span><strong>{item.name}</strong><small>{item.line}</small>
         </button>)}
       </div>
@@ -457,7 +551,7 @@ function Home({
 
   return <>
     <section className="hero key-art-hero">
-      <h1 className="sr-only">Brave Blocks: big feelings, brave words, wild quests</h1>
+      <h1 className="sr-only" data-route-heading tabIndex={-1}>Brave Blocks: big feelings, brave words, wild quests</h1>
       <Image
         className="hero-art"
         src={`${PUBLIC_BASE}/og.png`}
@@ -480,7 +574,7 @@ function Home({
     <section className="player-deck">
       <div>
         <small>CHOOSE YOUR PLAYER</small>
-        <div className="avatar-row">{avatars.map((a) => <button key={a.name} title={a.name} aria-label={`Choose ${a.name}`} className={avatar === a.icon ? "avatar-pick active" : "avatar-pick"} onClick={() => { playSound("tap", false); say(`${a.name} selected`); setAvatar(a.icon); }}><PixelIcon icon={a.icon} /></button>)}</div>
+        <div className="avatar-row">{avatars.map((a) => <button key={a.name} title={a.name} aria-label={`Choose ${a.name}`} aria-pressed={avatar === a.icon} className={avatar === a.icon ? "avatar-pick active" : "avatar-pick"} onClick={() => { playSound("tap", false); say(`${a.name} selected`); setAvatar(a.icon); }}><PixelIcon icon={a.icon} /></button>)}</div>
       </div>
       <button className={claimed ? "mystery claimed" : "mystery"} onClick={claimBonus} disabled={claimed}>
         <span>{claimed ? <PixelIcon icon="✨" /> : "?"}</span>
@@ -509,10 +603,22 @@ function Home({
     <section className="quest-section">
       <div className="section-title"><span>✦</span><div><small>THE QUEST MAP</small><h2>Pick your next W</h2></div><span>✦</span></div>
       <div className="quest-grid">
-        {quests.map((q) => <button className={`quest-card ${q.color}`} key={q.id} onClick={() => go(q.id)}>
-          <span className="quest-number">{q.tag}</span><span className="quest-icon"><PixelIcon icon={q.icon} /></span>
-          <strong>{q.title}</strong><span>{q.text}</span><em>LOCK IN →</em>
-        </button>)}
+        {quests.map((q) => {
+          const titleId = `quest-${q.id}-title`;
+          const descriptionId = `quest-${q.id}-description`;
+          return <article className={`quest-card ${q.color}`} key={q.id}>
+            <span className="quest-number">{q.tag}</span>
+            <span className="quest-icon"><PixelIcon icon={q.icon} /></span>
+            <h3 id={titleId}>{q.title}</h3>
+            <p id={descriptionId}>{q.text}</p>
+            <em aria-hidden="true">LOCK IN →</em>
+            <button
+              className="quest-card-action"
+              onClick={() => go(q.id)}
+              aria-labelledby={`${titleId} ${descriptionId}`}
+            ><span className="sr-only">Open quest</span></button>
+          </article>;
+        })}
       </div>
       <p className="level-line"><PixelText text={xp >= 500 ? "🏆 MAX BRAVE AURA UNLOCKED" : `⚡ ${500 - Math.min(xp, 500)} XP TO MAX BRAVE AURA`} /></p>
     </section>
@@ -534,7 +640,7 @@ function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
       <div><small>LIVE VIBE CHECK</small><h2>{picked.length === 0 ? "EMPTY MIX" : picked.length === 1 ? `${picked[0]} MODE` : `${picked.length}X COMBO!`}</h2><p>{picked.length > 1 ? <PixelText text="ULTRA RARE MIXED FEELINGS ✨" /> : "Choose what is here right now."}</p></div>
     </div>
     <div className="feeling-grid">
-      {feelings.map((f) => <button key={f.name} onClick={() => toggle(f.name, f.clue)} className={`feeling-block ${picked.includes(f.name) ? "selected" : ""}`} style={{ "--block": f.color } as React.CSSProperties}>
+      {feelings.map((f) => <button key={f.name} aria-pressed={picked.includes(f.name)} onClick={() => toggle(f.name, f.clue)} className={`feeling-block ${picked.includes(f.name) ? "selected" : ""}`} style={{ "--block": f.color } as React.CSSProperties}>
         <span><PixelIcon icon={f.face} /></span><strong>{f.name}</strong><small>{f.clue}</small><i>{picked.includes(f.name) ? "IN THE MIX ✓" : "ADD +"}</i>
       </button>)}
     </div>
@@ -545,13 +651,13 @@ function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
         <h3>{picked.length ? `${picked.join(" + ")} CAN ALL BE HERE` : "NO VIBE HAS TO BE PICKED"}</h3>
         <p>{picked.length ? "Nothing to fix. Want wiggle energy or cozy energy?" : "Tap a feeling, point at one, or pass. Still a W."}</p>
         <div>
-          <button className={axoMove === "wiggle" ? "active" : ""} onClick={() => { setAxoMove("wiggle"); playSound("tap", muted); say("Wiggle mode. Shake, then freeze."); }}><PixelIcon icon="🕺" /> WIGGLE</button>
-          <button className={axoMove === "cozy" ? "active" : ""} onClick={() => { setAxoMove("cozy"); playSound("open", muted); say("Cozy mode. Hold something soft."); }}><PixelIcon icon="🧸" /> COZY</button>
-          <button className={axoMove === "pass" ? "active" : ""} onClick={() => { setAxoMove("pass"); say("Pass unlocked. No explaining needed."); }}><PixelIcon icon="⏭️" /> PASS</button>
+          <button aria-pressed={axoMove === "wiggle"} className={axoMove === "wiggle" ? "active" : ""} onClick={() => { setAxoMove("wiggle"); playSound("tap", muted); say("Wiggle mode. Shake, then freeze."); }}><PixelIcon icon="🕺" /> WIGGLE</button>
+          <button aria-pressed={axoMove === "cozy"} className={axoMove === "cozy" ? "active" : ""} onClick={() => { setAxoMove("cozy"); playSound("open", muted); say("Cozy mode. Hold something soft."); }}><PixelIcon icon="🧸" /> COZY</button>
+          <button aria-pressed={axoMove === "pass"} className={axoMove === "pass" ? "active" : ""} onClick={() => { setAxoMove("pass"); say("Pass unlocked. No explaining needed."); }}><PixelIcon icon="⏭️" /> PASS</button>
         </div>
       </div>
     </div>
-    {(picked.length > 0 || axoMove) && <div className="quest-result"><span className="big"><PixelIcon icon={picked.length ? "🔥" : "⏭️"} /></span><div><strong>{picked.length ? "That mix is valid. Huge W." : "You made a choice. Huge W."}</strong><p>{picked.length ? "Opposite feelings can team up. Nothing weird about it." : "Passing, wiggling, or getting cozy all count."}</p></div><button onClick={earn}>CRAFT LOOT →</button></div>}
+    {(picked.length > 0 || axoMove) && <div className="quest-result" role="status"><span className="big"><PixelIcon icon={picked.length ? "🔥" : "⏭️"} /></span><div><strong>{picked.length ? "That mix is valid. Huge W." : "You made a choice. Huge W."}</strong><p>{picked.length ? "Opposite feelings can team up. Nothing weird about it." : "Passing, wiggling, or getting cozy all count."}</p></div><button onClick={earn}>CRAFT LOOT →</button></div>}
   </QuestShell>;
 }
 
@@ -565,17 +671,20 @@ function BodyQuest({ earn, skip, muted }: { earn: () => void; skip: () => void; 
   };
   const power = Math.min(100, found.length * 25);
   return <QuestShell title="Body Radar" subtitle="Your body drops clues. Scan them." icon="📡">
-    <div className="scanner-top"><span>RADAR POWER</span><div><i style={{ width: `${power}%` }} /></div><strong>{power}%</strong></div>
+    <div className="scanner-top" role="progressbar" aria-label="Radar power" aria-valuemin={0} aria-valuemax={100} aria-valuenow={power}><span>RADAR POWER</span><div><i style={{ width: `${power}%` }} /></div><strong>{power}%</strong></div>
     <div className="body-layout">
-      <div className={`block-person ${spot ? "scanning" : ""}`} aria-label="Body map">
+      <div className={`block-person ${spot ? "scanning" : ""}`} role="img" aria-label="Body map">
         <div className="scan-line" /><div className="bp-head"><PixelIcon icon="🙂" /></div><div className="bp-body"><PixelIcon icon="♥" /></div><div className="bp-arms">━　━</div><div className="bp-legs">▮　▮</div>
       </div>
       <div className="spot-grid">
-        {bodySpots.map((s) => <button key={s.id} className={spot?.id === s.id ? "spot active" : "spot"} onClick={() => { playSound("tap", muted); say(s.label); setSpot(s); }}><span><PixelIcon icon={s.icon} /></span>{s.label}</button>)}
+        {bodySpots.map((s) => <button key={s.id} aria-pressed={spot?.id === s.id} className={spot?.id === s.id ? "spot active" : "spot"} onClick={() => { playSound("tap", muted); say(s.label); setSpot(s); }}><span><PixelIcon icon={s.icon} /></span>{s.label}</button>)}
       </div>
     </div>
-    {spot && <div className="sensation-panel"><h3><PixelIcon icon="📡" /> WHAT’S THE CLUE?</h3><div>{spot.sensations.map((s) => <button key={s} className={found.includes(`${spot.label}: ${s}`) ? "chip chosen" : "chip"} onClick={() => scan(`${spot.label}: ${s}`)}>{s}</button>)}<button className="chip" onClick={() => scan(`${spot.label}: something else`)}>something else</button></div></div>}
-    {found.length > 0 && <div className="scan-log"><strong>CLUE LOG</strong>{found.map((x) => <span key={x}>✓ {x}</span>)}</div>}
+    {spot && <div className="sensation-panel"><h3><PixelIcon icon="📡" /> WHAT’S THE CLUE?</h3><div>{spot.sensations.map((s) => {
+      const clue = `${spot.label}: ${s}`;
+      return <button key={s} aria-pressed={found.includes(clue)} className={found.includes(clue) ? "chip chosen" : "chip"} onClick={() => scan(clue)}>{s}</button>;
+    })}<button aria-pressed={found.includes(`${spot.label}: something else`)} className={found.includes(`${spot.label}: something else`) ? "chip chosen" : "chip"} onClick={() => scan(`${spot.label}: something else`)}>something else</button></div></div>}
+    {found.length > 0 && <div className="scan-log" role="status"><strong>CLUE LOG</strong>{found.map((x) => <span key={x}>✓ {x}</span>)}</div>}
     {found.length >= 2 && <button className="primary center" onClick={earn}>RADAR LOCKED IN · GET LOOT →</button>}
     <RegulationSkip onSkip={skip} />
   </QuestShell>;
@@ -623,7 +732,7 @@ function CalmQuest({ earn, skip, muted }: { earn: () => void; skip: () => void; 
   };
   return <QuestShell title="Dragon Battle" subtitle="Slow breath = max shield power." icon="🐉">
     <div className={`breath-world ${running ? "breathing" : ""} ${won ? "won" : ""}`}>
-      <div className="battle-hud"><span>DRAGON BOSS</span><div><i style={{ width: won ? "0%" : `${100 - (step / calmSteps.length) * 100}%` }} /></div></div>
+      <div className="battle-hud" role="progressbar" aria-label="Dragon boss energy" aria-valuemin={0} aria-valuemax={100} aria-valuenow={won ? 0 : Math.round(100 - (step / calmSteps.length) * 100)}><span>DRAGON BOSS</span><div><i style={{ width: won ? "0%" : `${100 - (step / calmSteps.length) * 100}%` }} /></div></div>
       <div className={`dragon breathing-dragon phase-${dragonPhase}`} role="img" aria-label={`Friendly block dragon: ${dragonCue.toLowerCase()}`}>
         <span className="dragon-air dragon-air-in" aria-hidden="true"><PixelIcon icon="💨" />→</span>
         <span className="dragon-face" aria-hidden="true"><PixelIcon icon="🐲" /></span>
@@ -636,8 +745,8 @@ function CalmQuest({ earn, skip, muted }: { earn: () => void; skip: () => void; 
         <span className="dragon-air dragon-air-out" aria-hidden="true"><PixelIcon icon="🔥" />→</span>
         <strong className="dragon-cue" aria-live="polite">{dragonCue}</strong>
       </div>
-      <div className="breath-orb"><span>{breathLabel}</span></div>
-      <div className="shield-charge"><span>SHIELD</span>{[0,1,2,3].map((x) => <i className={won || step > x * 2 ? "charged" : ""} key={x}>◆</i>)}</div>
+      <div className="breath-orb" aria-live="polite" aria-atomic="true"><span>{breathLabel}</span></div>
+      <div className="shield-charge" role="progressbar" aria-label="Shield charge" aria-valuemin={0} aria-valuemax={4} aria-valuenow={won ? 4 : Math.min(4, Math.ceil(step / 2))}><span>SHIELD</span>{[0,1,2,3].map((x) => <i className={won || step > x * 2 ? "charged" : ""} key={x}>◆</i>)}</div>
       <button className="primary" disabled={running} onClick={start}>{running ? "LOCKED IN..." : won ? <PixelText text="REMATCH 🔁" /> : "START BOSS BATTLE"}</button>
       {won && <button className="secondary" onClick={earn}>CLAIM BOSS LOOT →</button>}
       <RegulationSkip onSkip={skipBattle} />
@@ -648,7 +757,9 @@ function CalmQuest({ earn, skip, muted }: { earn: () => void; skip: () => void; 
 function SlimeDoodle() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+  const stampIndexRef = useRef(0);
   const [color, setColor] = useState("#a9ff55");
+  const [drawingStatus, setDrawingStatus] = useState("");
 
   const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -689,12 +800,31 @@ function SlimeDoodle() {
   const clear = () => {
     const canvas = canvasRef.current;
     canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    stampIndexRef.current = 0;
+    setDrawingStatus("Drawing cleared.");
+  };
+  const stampKeyboardPixel = () => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const columns = 8;
+    const index = stampIndexRef.current;
+    const x = 45 + (index % columns) * 105;
+    const y = 45 + (Math.floor(index / columns) % 3) * 95;
+    context.fillStyle = color;
+    context.fillRect(x - 24, y - 24, 48, 48);
+    context.strokeStyle = "#090b2d";
+    context.lineWidth = 6;
+    context.strokeRect(x - 24, y - 24, 48, 48);
+    stampIndexRef.current += 1;
+    setDrawingStatus(`Slime pixel ${stampIndexRef.current} added.`);
   };
 
   return <div className="slime-doodle">
     <div className="slime-tools">
       <strong>DRAW THE VIBE</strong>
-      <div>{["#a9ff55", "#ff58c8", "#4de8ff", "#ffe04b", "#9c72ff"].map((item) => <button aria-label={`Use ${item} slime`} className={color === item ? "active" : ""} style={{ background: item }} key={item} onClick={() => setColor(item)} />)}</div>
+      <div>{["#a9ff55", "#ff58c8", "#4de8ff", "#ffe04b", "#9c72ff"].map((item) => <button aria-label={`Use ${item} slime`} aria-pressed={color === item} className={color === item ? "active" : ""} style={{ background: item }} key={item} onClick={() => setColor(item)} />)}</div>
+      <button className="slime-stamp" onClick={stampKeyboardPixel}><PixelIcon icon="🟢" /> STAMP PIXEL</button>
       <button className="slime-clear" onClick={clear}><PixelIcon icon="🧽" /> CLEAR</button>
     </div>
     <canvas
@@ -706,9 +836,12 @@ function SlimeDoodle() {
       onPointerUp={finish}
       onPointerCancel={finish}
       onPointerLeave={finish}
-      aria-label="Slime drawing pad. Draw any shape or feeling."
+      role="img"
+      aria-label="Slime drawing pad"
+      aria-describedby="slime-doodle-help slime-doodle-status"
     />
-    <p>Draw anything. It does not save or send.</p>
+    <p id="slime-doodle-help">Draw with a finger or mouse. Keyboard players can use STAMP PIXEL. It does not save or send.</p>
+    <span className="sr-only" id="slime-doodle-status" role="status">{drawingStatus}</span>
   </div>;
 }
 
@@ -778,7 +911,7 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
       <div className="mini-title"><small>GEAR UP</small><h3>Pick what could help</h3></div>
       {groups.map((group) => <div className="loadout-row" key={group.id}>
         <strong>{group.title}</strong>
-        <div>{group.options.map((item) => <button className={picks[group.id] === item.label ? "active" : ""} key={item.label} onClick={() => choosePack(group.id, item.label)}>
+        <div>{group.options.map((item) => <button aria-pressed={picks[group.id] === item.label} className={picks[group.id] === item.label ? "active" : ""} key={item.label} onClick={() => choosePack(group.id, item.label)}>
           <span><PixelIcon icon={item.icon} /></span><b>{item.label}</b>
         </button>)}</div>
       </div>)}
@@ -786,11 +919,11 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
 
     <section className="choice-portal">
       <div className="mini-title"><small>COMMUNICATION PORTAL</small><h3>How do you want to answer?</h3></div>
-      <div className="mode-grid">{modes.map((item) => <button className={mode === item.id ? "active" : ""} key={item.id} onClick={() => { setMode(item.id); playSound("open", muted); say(`${item.label} unlocked.`); }}>
+      <div className="mode-grid">{modes.map((item) => <button aria-pressed={mode === item.id} className={mode === item.id ? "active" : ""} key={item.id} onClick={() => { setMode(item.id); playSound("open", muted); say(`${item.label} unlocked.`); }}>
         <span><PixelIcon icon={item.icon} /></span><strong>{item.label}</strong>
       </button>)}</div>
-      {mode === "say" && <div className="power-phrases">{meetingMoves.slice(1).map((item) => <button className={practice === item.words ? "active" : ""} key={item.words} onClick={() => { setPractice(item.words); say(item.words); }}><span><PixelIcon icon={item.icon} /></span><strong>{item.words}</strong></button>)}</div>}
-      {mode === "point" && <div className="point-board">{feelings.map((item) => <button className={practice === item.name ? "active" : ""} key={item.name} onClick={() => { setPractice(item.name); say(item.name); }}><span><PixelIcon icon={item.face} /></span><strong>{item.name}</strong></button>)}</div>}
+      {mode === "say" && <div className="power-phrases">{meetingMoves.slice(1).map((item) => <button aria-pressed={practice === item.words} className={practice === item.words ? "active" : ""} key={item.words} onClick={() => { setPractice(item.words); say(item.words); }}><span><PixelIcon icon={item.icon} /></span><strong>{item.words}</strong></button>)}</div>}
+      {mode === "point" && <div className="point-board">{feelings.map((item) => <button aria-pressed={practice === item.name} className={practice === item.name ? "active" : ""} key={item.name} onClick={() => { setPractice(item.name); say(item.name); }}><span><PixelIcon icon={item.face} /></span><strong>{item.name}</strong></button>)}</div>}
       {mode === "draw" && <SlimeDoodle />}
       {mode === "pass" && <div className="pass-card"><span><PixelIcon icon="⏭️" /></span><div><strong>PASS IS A REAL CHOICE</strong><p>“I want to pass for now.” You can come back later—or not.</p><button onClick={() => say("I want to pass for now.")}><PixelIcon icon="🔊" /> HEAR THE WORDS</button></div></div>}
     </section>
@@ -807,11 +940,11 @@ function MeetingLoadout({ earn, muted }: { earn: () => void; muted: boolean }) {
 
     <section className="landing-pad">
       <div className="mini-title"><small>AFTER-MEETING LANDING PAD</small><h3>What might your body want?</h3></div>
-      <div>{landingMoves.map((item) => <button className={landing === item.label ? "active" : ""} key={item.label} onClick={() => { setLanding(item.label); say(`${item.label} landing pad.`); }}><span><PixelIcon icon={item.icon} /></span><strong>{item.label}</strong></button>)}</div>
+      <div>{landingMoves.map((item) => <button aria-pressed={landing === item.label} className={landing === item.label ? "active" : ""} key={item.label} onClick={() => { setLanding(item.label); say(`${item.label} landing pad.`); }}><span><PixelIcon icon={item.icon} /></span><strong>{item.label}</strong></button>)}</div>
       <p>You still get care and connection after any answer—or no answer.</p>
     </section>
 
-    {ready && <div className="loadout-ready"><span><PixelIcon icon="🎒" /><PixelIcon icon="✨" /></span><div><strong>LOADOUT READY</strong><p>You practiced making choices. That is the W.</p></div><button className="primary" onClick={earn}>CLAIM LOADOUT LOOT →</button></div>}
+    {ready && <div className="loadout-ready" role="status"><span><PixelIcon icon="🎒" /><PixelIcon icon="✨" /></span><div><strong>LOADOUT READY</strong><p>You practiced making choices. That is the W.</p></div><button className="primary" onClick={earn}>CLAIM LOADOUT LOOT →</button></div>}
     <p className="loadout-privacy"><PixelIcon icon="🔐" /> Nothing picked, pointed to, or drawn here is saved or sent.</p>
   </QuestShell>;
 }
@@ -840,9 +973,9 @@ function MeetingQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
           {!complete && <button onClick={() => say(meetingRounds[round].words)}><PixelIcon icon="🔊" /> HEAR</button>}
         </div>
       </div>
-      {!complete && <div className="move-grid">{meetingMoves.map((m) => <button key={m.words} disabled={played} className={lastMove?.words === m.words ? "move active" : "move"} onClick={() => move(m)}><span><PixelIcon icon={m.icon} /></span><strong>“{m.words}”</strong></button>)}</div>}
-      {lastMove && <div className="move-win"><span>+1 BRAVE AURA</span><strong>“{lastMove.words}”</strong><p>{lastMove.tip} Your answer belongs to you.</p><button onClick={next}>{round === 2 ? "FINISH MISSION →" : "NEXT ROUND →"}</button></div>}
-      {complete && <div className="meeting-finish"><p><PixelIcon icon="🛡️" /> You can use your own words. You can say “I don’t know.” You can ask for a break. You never have to choose sides.</p><button className="primary" onClick={earn}>OPEN POWER LOOT →</button></div>}
+      {!complete && <div className="move-grid">{meetingMoves.map((m) => <button key={m.words} aria-pressed={lastMove?.words === m.words} disabled={played} className={lastMove?.words === m.words ? "move active" : "move"} onClick={() => move(m)}><span><PixelIcon icon={m.icon} /></span><strong>“{m.words}”</strong></button>)}</div>}
+      {lastMove && <div className="move-win" role="status"><span>+1 BRAVE AURA</span><strong>“{lastMove.words}”</strong><p>{lastMove.tip} Your answer belongs to you.</p><button onClick={next}>{round === 2 ? "FINISH MISSION →" : "NEXT ROUND →"}</button></div>}
+      {complete && <div className="meeting-finish" role="status"><p><PixelIcon icon="🛡️" /> You can use your own words. You can say “I don’t know.” You can ask for a break. You never have to choose sides.</p><button className="primary" onClick={earn}>OPEN POWER LOOT →</button></div>}
     </div>
     <div className="privacy-power"><span><PixelIcon icon="🔒" /></span><p><strong>SMART MOVE:</strong> Ask each grown-up what they will keep private and what they may share.</p></div>
   </QuestShell>;
@@ -864,8 +997,8 @@ function BaseQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
     setBlocks((b) => b.includes(label) ? b.filter((x) => x !== label) : b.length < 5 ? [...b, label] : b);
   };
   return <QuestShell title="Build Mode" subtitle="Stack your support squad." icon="🏰">
-    <div className="build-hud"><span>BLOCKS PLACED: {blocks.length}/5</span><strong>{blocks.length >= 3 ? <PixelText text="BASE AURA: ELITE ✨" /> : "TAP TO BUILD"}</strong></div>
-    <div className="support-picker">{supportBlocks.map((b) => <button key={b.label} onClick={() => toggle(b.label)} className={blocks.includes(b.label) ? "support selected" : "support"}><span><PixelIcon icon={b.icon} /></span><strong>{b.label}</strong><i>{blocks.includes(b.label) ? "PLACED ✓" : "+ BLOCK"}</i></button>)}</div>
+    <div className="build-hud" role="status"><span>BLOCKS PLACED: {blocks.length}/5</span><strong>{blocks.length >= 3 ? <PixelText text="BASE AURA: ELITE ✨" /> : "TAP TO BUILD"}</strong></div>
+    <div className="support-picker">{supportBlocks.map((b) => <button key={b.label} aria-pressed={blocks.includes(b.label)} onClick={() => toggle(b.label)} className={blocks.includes(b.label) ? "support selected" : "support"}><span><PixelIcon icon={b.icon} /></span><strong>{b.label}</strong><i>{blocks.includes(b.label) ? "PLACED ✓" : "+ BLOCK"}</i></button>)}</div>
     <div className={`base-build ${blocks.length >= 3 ? "base-party" : ""}`}>
       <h3><PixelIcon icon="🏳️" /> PLAYER’S SAFE BASE</h3>
       <div className="build-grid">{Array.from({ length: 9 }).map((_, i) => {
@@ -880,8 +1013,8 @@ function BaseQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
       <span><PixelIcon icon="🤝" /></span>
       <div><small>HOME-BASE CO-OP</small><h3>{coOpTurn} TURN</h3><p>{coOpPrompt}</p></div>
       <div className="co-op-actions">
-        <button onClick={() => { setCoOpTurn("PLAYER"); say("Player turn."); }}><PixelIcon icon="🧒" /> MY TURN</button>
-        <button onClick={() => { setCoOpTurn("GROWN-UP"); say("Grown-up turn."); }}><PixelIcon icon="🧑" /> GROWN-UP</button>
+        <button aria-pressed={coOpTurn === "PLAYER"} onClick={() => { setCoOpTurn("PLAYER"); say("Player turn."); }}><PixelIcon icon="🧒" /> MY TURN</button>
+        <button aria-pressed={coOpTurn === "GROWN-UP"} onClick={() => { setCoOpTurn("GROWN-UP"); say("Grown-up turn."); }}><PixelIcon icon="🧑" /> GROWN-UP</button>
         <button onClick={() => {
           const next = coOpMissions[Math.floor(Math.random() * coOpMissions.length)];
           setCoOpPrompt(next);
@@ -947,14 +1080,14 @@ function SafetyQuest({ earn, skip, muted }: { earn: () => void; skip: () => void
 
   return <QuestShell title="Safety Power-Ups" subtitle="Huge feeling. Safe body. Both can be true." icon="👐">
     <div className="safety-rule"><span><PixelIcon icon="🛡️" /></span><div><small>THE LEGENDARY RULE</small><h2>FEELINGS CAN BE HUGE.<br />HANDS + FEET STAY SAFE.</h2><p>You are not bad. Your body needs a mission.</p></div></div>
-    <div className="safety-meter"><span>SAFETY SHIELD</span><div>{missions.map((item, index) => <i className={index < chosen.length ? "powered" : ""} key={item.title}><PixelIcon icon={item.icon} /></i>)}</div></div>
+    <div className="safety-meter" role="progressbar" aria-label="Safety shield" aria-valuemin={0} aria-valuemax={missions.length} aria-valuenow={chosen.length}><span>SAFETY SHIELD</span><div aria-hidden="true">{missions.map((item, index) => <i className={index < chosen.length ? "powered" : ""} key={item.title}><PixelIcon icon={item.icon} /></i>)}</div></div>
     {!complete && <div className="safety-mission">
       <div className="safety-boss"><span><PixelIcon icon={missions[mission].icon} /></span><div><small>MISSION {mission + 1} / {missions.length}</small><h3>{missions[mission].title}</h3><p>{missions[mission].prompt}</p></div></div>
-      <div className="safe-moves">{missions[mission].moves.map((item) => <button key={item.words} disabled={Boolean(move)} className={move?.words === item.words ? "active" : ""} onClick={() => choose(item)}><span><PixelIcon icon={item.icon} /></span><strong>{item.words}</strong></button>)}</div>
-      {move && <div className="safe-win"><span><PixelText text="✨ SAFE MOVE · +1 SHIELD ✨" /></span><strong><PixelIcon icon={move.icon} /> {move.words}</strong><p>That keeps you and other people safe. Legendary.</p><button onClick={next}>{mission === missions.length - 1 ? "MAX THE SHIELD →" : "NEXT MISSION →"}</button></div>}
+      <div className="safe-moves">{missions[mission].moves.map((item) => <button key={item.words} aria-pressed={move?.words === item.words} disabled={Boolean(move)} className={move?.words === item.words ? "active" : ""} onClick={() => choose(item)}><span><PixelIcon icon={item.icon} /></span><strong>{item.words}</strong></button>)}</div>
+      {move && <div className="safe-win" role="status"><span><PixelText text="✨ SAFE MOVE · +1 SHIELD ✨" /></span><strong><PixelIcon icon={move.icon} /> {move.words}</strong><p>That keeps you and other people safe. Legendary.</p><button onClick={next}>{mission === missions.length - 1 ? "MAX THE SHIELD →" : "NEXT MISSION →"}</button></div>}
       <RegulationSkip onSkip={skip} />
     </div>}
-    {complete && <div className="safety-complete"><span><PixelIcon icon="👐" /><PixelIcon icon="🛡️" /></span><h2>GENTLE HANDS: LEGENDARY</h2><p>Big feelings are allowed. Safe hands, safe feet, and strong words protect everybody.</p><div>{chosen.map((item) => <i key={item}>✓ {item}</i>)}</div><button className="primary" onClick={earn}>CLAIM SAFETY LOOT →</button></div>}
+    {complete && <div className="safety-complete" role="status"><span><PixelIcon icon="👐" /><PixelIcon icon="🛡️" /></span><h2>GENTLE HANDS: LEGENDARY</h2><p>Big feelings are allowed. Safe hands, safe feet, and strong words protect everybody.</p><div>{chosen.map((item) => <i key={item}>✓ {item}</i>)}</div><button className="primary" onClick={earn}>CLAIM SAFETY LOOT →</button></div>}
     <div className="get-help-now"><span><PixelIcon icon="🚨" /></span><p>If you might hurt yourself or someone else, <strong>get a safe grown-up now.</strong> You do not have to handle it alone.</p></div>
   </QuestShell>;
 }
@@ -996,8 +1129,8 @@ function ParkourQuest({ earn, avatar, muted }: { earn: () => void; avatar: strin
   const reset = () => { setPosition(0); setJumping(false); setStars(0); setBonk(false); };
 
   return <QuestShell title="Pixel Parkour" subtitle="Jump slime. Grab snacks. Get the W." icon="☁️">
-    <div className="parkour-hud"><span><PixelIcon icon="⭐" /> LOOT {stars}</span><strong>{finished ? "LEVEL CLEARED!" : jumping ? "JUMP LOADED!" : bonk ? "BOINK! JUMP FIRST!" : "READY, PLAYER ONE?"}</strong></div>
-    <div className="parkour-world">
+    <div className="parkour-hud" role="status" aria-atomic="true"><span><PixelIcon icon="⭐" /> LOOT {stars}</span><strong>{finished ? "LEVEL CLEARED!" : jumping ? "JUMP LOADED!" : bonk ? "BOINK! JUMP FIRST!" : "READY, PLAYER ONE?"}</strong></div>
+    <div className="parkour-world" role="img" aria-label={`Pixel Parkour track. Player is on space ${position + 1} of ${track.length}, with ${stars} loot.`}>
       <div className="park-cloud pc1" /><div className="park-cloud pc2" />
       <div className="track">{track.map((item, index) => <div key={index} className={obstacles.has(index) ? "track-cell obstacle" : "track-cell"}>
         {index === position && <span className={jumping ? "runner jumping" : "runner"}><PixelIcon icon={avatar} /></span>}
@@ -1084,8 +1217,8 @@ function BeatQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
     <div className={`beat-stage ${playing ? "playing" : ""}`}>
       <div className="equalizer">{[1,2,3,4,5,6,7,8,9].map((n) => <i key={n} />)}</div>
       <div className="dj"><PixelIcon icon={dancer} /><span><PixelIcon icon="🎧" /></span></div>
-      <h2>{playing ? "HOUSE MODE: BUSSIN’" : "DJ GLORP IS READY"}</h2>
-      <div className="beat-buttons"><button className="primary" onClick={playing ? stopBeat : startBeat}><PixelText text={playing ? "⏹ STOP BEAT" : "▶ START HOUSE BEAT"} /></button><button className="secondary" onClick={rap}><PixelIcon icon="🎤" /> DROP THE SILLY RAP</button></div>
+      <h2 aria-live="polite">{playing ? "HOUSE MODE: BUSSIN’" : "DJ GLORP IS READY"}</h2>
+      <div className="beat-buttons"><button aria-pressed={playing} className="primary" onClick={playing ? stopBeat : startBeat}><PixelText text={playing ? "⏹ STOP BEAT" : "▶ START HOUSE BEAT"} /></button><button className="secondary" onClick={rap}><PixelIcon icon="🎤" /> DROP THE SILLY RAP</button></div>
       {muted && <p className="muted-note"><PixelIcon icon="🔇" /> Turn sound on at the top to use the beat.</p>}
     </div>
     <div className="sample-pads">{pads.map((pad) => <button key={pad.name} onClick={() => hit(pad)}><span><PixelIcon icon={pad.icon} /></span><strong>{pad.name}</strong><small>TAP PAD</small></button>)}</div>
@@ -1119,10 +1252,10 @@ function FaithQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
         <button onClick={() => say("Jesus loves me. I am loved on easy days and hard days.")}><PixelIcon icon="🔊" /> JESUS LOVES ME</button>
       </div>
     </div>
-    <div className="story-grid">{stories.map((item) => <button key={item.title} className={story?.title === item.title ? "story-card active" : "story-card"} onClick={() => openStory(item)}>
+    <div className="story-grid">{stories.map((item) => <button key={item.title} aria-pressed={story?.title === item.title} className={story?.title === item.title ? "story-card active" : "story-card"} onClick={() => openStory(item)}>
       <span><PixelIcon icon={item.icon} /></span><strong>{item.title}</strong><small>{opened.includes(item.title) ? "GEM FOUND ✓" : "TAP STORY"}</small>
     </button>)}</div>
-    {story && <div className="story-scroll"><small>HOPE GEM UNLOCKED</small><span><PixelIcon icon={story.icon} /></span><h3>{story.title}</h3><p>{story.story}</p><strong><PixelIcon icon="💎" /> {story.gem}</strong><button onClick={() => say(`${story.story} ${story.gem}`)}><PixelIcon icon="🔊" /> HEAR AGAIN</button></div>}
+    {story && <div className="story-scroll" role="status"><small>HOPE GEM UNLOCKED</small><span><PixelIcon icon={story.icon} /></span><h3>{story.title}</h3><p>{story.story}</p><strong><PixelIcon icon="💎" /> {story.gem}</strong><button onClick={() => say(`${story.story} ${story.gem}`)}><PixelIcon icon="🔊" /> HEAR AGAIN</button></div>}
     <div className="faith-affirmation"><span><PixelIcon icon="💛" /></span><p><strong>Jesus loves me.</strong><br />I can use my own words. I can ask for help. All my feelings can come to the campfire.</p></div>
     {opened.length >= 2 && <button className="primary center" onClick={earn}>COLLECT HOPE LOOT →</button>}
   </QuestShell>;
@@ -1137,12 +1270,21 @@ function FireInstallGuide({
   onInstall: () => void;
   canInstall: boolean;
 }) {
-  return <div className="install-modal" role="dialog" aria-modal="true" aria-label="Install Brave Blocks on a Fire tablet">
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
+  return <div
+    ref={dialogRef}
+    className="install-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fire-install-title"
+    tabIndex={-1}
+    onKeyDown={onDialogKeyDown}
+  >
     <div className="install-sheet">
       <button className="install-close" onClick={onClose} aria-label="Close">×</button>
       <span className="fire-tablet"><PixelIcon icon="📲" /></span>
       <small>GROWN-UP SETUP</small>
-      <h2>Fire Tablet Setup</h2>
+      <h2 id="fire-install-title">Fire Tablet Setup</h2>
       <ol>
         <li><b>Open Amazon Silk</b><span>Open the public Brave Blocks review link.</span></li>
         <li><b>Use Install Now if it appears</b><span>That button uses the tablet’s own installation prompt.</span></li>
@@ -1192,7 +1334,7 @@ function GrownupGuide() {
 
 function QuestShell({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: string; children: React.ReactNode }) {
   return <section className="quest-page">
-    <div className="quest-heading"><span><PixelIcon icon={icon} /></span><div><small>BRAVE BLOCKS MINIGAME</small><h1>{title}</h1><p>{subtitle}</p></div><button className="read-button" onClick={() => say(`${title}. ${subtitle}`)}><PixelIcon icon="🔊" /><b>HEAR IT</b></button></div>
+    <div className="quest-heading"><span><PixelIcon icon={icon} /></span><div><small>BRAVE BLOCKS MINIGAME</small><h1 data-route-heading tabIndex={-1}>{title}</h1><p>{subtitle}</p></div><button className="read-button" aria-label={`Hear ${title} instructions`} onClick={() => say(`${title}. ${subtitle}`)}><PixelIcon icon="🔊" /><b>HEAR IT</b></button></div>
     {children}
   </section>;
 }
@@ -1204,7 +1346,9 @@ export default function HomePage() {
   const [avatar, setAvatar] = useState("🐲");
   const [collection, setCollection] = useState<Loot[]>([]);
   const [loot, setLoot] = useState<Loot | null>(null);
+  const [completionReward, setCompletionReward] = useState(0);
   const [completionNote, setCompletionNote] = useState("");
+  const [announcement, setAnnouncement] = useState("");
   const [muted, setMuted] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
@@ -1243,16 +1387,27 @@ export default function HomePage() {
     grownups: "Grown-up guide.",
   };
 
-  const go = (next: Quest) => { playSound("tap", muted); setQuest(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const focusRouteHeading = () => window.setTimeout(() => {
+    document.querySelector<HTMLElement>("[data-route-heading]")?.focus();
+  }, 0);
+  const go = (next: Quest) => {
+    playSound("tap", muted);
+    setQuest(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    focusRouteHeading();
+  };
   const awardXp = (amount: number) => setXp((value) => value + Math.max(0, amount));
   const completeQuest = (note = "") => {
     const badge = names[quest];
     const firstWin = badge && !badges.includes(badge);
+    const reward = firstWin ? 100 : 25;
     if (firstWin) setBadges((b) => [...b, badge]);
-    awardXp(firstWin ? 100 : 25);
+    awardXp(reward);
     const prize = lootDrops[Math.floor(Math.random() * lootDrops.length)];
+    setCompletionReward(reward);
     setCompletionNote(note);
     setLoot(prize);
+    setAnnouncement(`Quest complete. ${reward} XP gained. Loot unlocked: ${prize.name}.${note ? ` ${note}` : ""} Total: ${xp + reward} XP.`);
     playSound("win", muted);
     say(note ? "Pass unlocked. No explaining needed." : `Quest W. You unlocked ${prize.name}.`);
   };
@@ -1260,11 +1415,16 @@ export default function HomePage() {
   const skipQuest = () => completeQuest(SKIP_AFFIRMATION);
   const closeLoot = () => {
     if (loot) setCollection((items) => [...items, loot]);
-    setLoot(null); setCompletionNote(""); setQuest("home"); window.scrollTo({ top: 0, behavior: "smooth" });
+    setLoot(null); setCompletionReward(0); setCompletionNote(""); setQuest("home"); window.scrollTo({ top: 0, behavior: "smooth" });
+    focusRouteHeading();
   };
   const claimBonus = () => {
     if (claimed) return;
-    setClaimed(true); awardXp(25); playSound("open", muted); say("Mystery block cracked. Plus twenty five X P. Huge W.");
+    setClaimed(true);
+    awardXp(25);
+    setAnnouncement(`25 XP gained. Mystery block claimed. Total: ${xp + 25} XP.`);
+    playSound("open", muted);
+    say("Mystery block cracked. Plus twenty five X P. Huge W.");
   };
   const runInstallPrompt = async () => {
     if (!installPrompt) return;
@@ -1313,6 +1473,7 @@ export default function HomePage() {
   const growthHearts = Math.min(10, badges.length + 1);
 
   return <main>
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</div>
     <header>
       <button className="brand" onClick={() => go("home")} aria-label="Brave Blocks home"><span><PixelIcon icon={avatar} /></span><strong>BRAVE<br />BLOCKS</strong></button>
       <div className="game-stats"><XPBar xp={xp} /><div
@@ -1325,9 +1486,9 @@ export default function HomePage() {
         aria-valuetext={`${growthHearts} of 10 growth hearts filled. This meter only grows.`}
       ><small className="growth-label" aria-hidden="true">GROWTH</small>{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < growthHearts} />)}</div></div>
       <div className="header-actions">
-        <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}><PixelIcon icon={muted ? "🔇" : "🔊"} /></button>
+        <button className="sound-button" aria-pressed={muted} onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}><PixelIcon icon={muted ? "🔇" : "🔊"} /></button>
         <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Pixel Quest Host narrator"><PixelIcon icon="🎮" /><span>VOICE</span></button>
-        <button className="listen-button" onClick={() => say(pageWords[quest])}><PixelIcon icon="🔊" /> <span>READ</span></button>
+        <button className="listen-button" aria-label="Read this page aloud" onClick={() => say(pageWords[quest])}><PixelIcon icon="🔊" /> <span>READ</span></button>
         <AdultGateButton
           className="guide-button"
           ariaLabel="Grown-ups: open the Grown-Up Guide"
@@ -1341,7 +1502,7 @@ export default function HomePage() {
     <div className="review-mode" role="note"><strong>WRAP TEAM REVIEW EDITION</strong><span>De-identified professional preview · no responses are saved or sent</span></div>
     {quest !== "home" && <button className="back" onClick={() => go("home")}>← QUEST MAP</button>}
     {content}
-    {loot && <Victory loot={loot} avatar={avatar} completionNote={completionNote} onClose={closeLoot} />}
+    {loot && <Victory loot={loot} avatar={avatar} reward={completionReward} completionNote={completionNote} onClose={closeLoot} />}
     {showInstall && <FireInstallGuide onClose={() => setShowInstall(false)} onInstall={runInstallPrompt} canInstall={Boolean(installPrompt)} />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
     {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
