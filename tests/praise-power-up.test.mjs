@@ -57,8 +57,20 @@ test("song-link guard rejects insecure and child-response query data", () => {
     /cannot include child-response/,
   );
   assert.doesNotThrow(
-    () => safeExternalSongUrl("https://www.youtube.com/watch?v=ILEdpepg7D0"),
+    () => safeExternalSongUrl("https://music.youtube.com/playlist?list=PLc1GIP9de-As"),
   );
+});
+
+test("Moses mode uses one parent-curated playlist without a share-tracking token", () => {
+  for (const need of powerNeeds) {
+    const [playlist] = mosesSongs[need.id];
+    const url = new URL(playlist.url);
+    assert.equal(url.origin, "https://music.youtube.com");
+    assert.equal(url.pathname, "/playlist");
+    assert.equal(url.searchParams.get("list"), "PLc1GIP9de-As");
+    assert.equal(url.searchParams.has("si"), false);
+    assert.equal(playlist.launchLabel, "Play Moses’ Jesus Songs");
+  }
 });
 
 test("every signal check is affirmed, including Not yet", () => {
@@ -114,16 +126,24 @@ test("Praise Power-Up opens a deliberate external link without embeds or autopla
   assert.match(pageSource, /target="_blank"/);
   assert.match(pageSource, /rel="noopener noreferrer external"/);
   assert.match(pageSource, /referrerPolicy="no-referrer"/);
-  assert.match(pageSource, /OPEN SONG ↗/);
+  assert.match(pageSource, /playlist-launch-button/);
+  assert.match(pageSource, /setHasOpenedPlaylist\(true\)/);
   assert.doesNotMatch(pageSource, /<iframe\b/i);
   assert.doesNotMatch(pageSource, /\bautoPlay\b|\bautoplay\b/i);
   assert.doesNotMatch(pageSource, /youtube\.com\/embed/i);
+  assert.doesNotMatch(pageSource, /youtube\.com\/results|music\.youtube\.com\/search/i);
 });
 
 test("the flow supports pass, optional participation, single completion, and reset", () => {
+  const missionPosition = pageSource.indexOf('className="tiny-mission"');
+  const playlistPosition = pageSource.indexOf('className="playlist-launch-card"');
+  const signalPosition = pageSource.indexOf('className="signal-check"');
+  assert(missionPosition > -1 && missionPosition < playlistPosition);
+  assert(playlistPosition < signalPosition);
   assert.match(pageSource, /OPTIONAL SIDE QUEST/);
   assert.match(pageSource, /I CAN TRY/);
   assert.match(pageSource, /JUST LISTEN/);
+  assert.match(pageSource, /\{hasOpenedPlaylist && <div className="signal-check"/);
   assert.match(pageSource, /Every answer gets the W/);
   assert.match(pageSource, /RegulationSkip onSkip=\{skip\}/);
   assert.match(pageSource, /if \(completionLocked\.current\) return/);
@@ -147,7 +167,7 @@ test("responsive and accessibility safeguards cover small screens and reduced mo
   assert.match(styles, /@media\(max-width:620px\)/);
   assert.match(styles, /@media\(prefers-reduced-motion:reduce\)/);
   assert.match(styles, /\.power-kit summary:focus-visible/);
-  assert.match(styles, /\.now-playing-card>a:focus-visible/);
+  assert.match(styles, /\.playlist-launch-button:focus-visible/);
   assert.match(styles, /min-height:52px/);
   assert.match(styles, /overflow-x:hidden/);
   assert.match(pageSource, /aria-labelledby="power-need-title"/);

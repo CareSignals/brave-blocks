@@ -8,6 +8,7 @@ export type SongTrack = {
   icon?: string;
   category: PowerNeedId;
   prompt?: string;
+  launchLabel?: string;
 };
 
 export type SongLibrary = Record<PowerNeedId, readonly SongTrack[]>;

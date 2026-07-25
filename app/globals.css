@@ -2248,9 +2248,10 @@ canvas:focus-visible,
   border:3px dashed #090b2d;
   font-weight:900;
 }
-.now-playing-card{
+.playlist-launch-card{
+  margin-top:20px;
   display:grid;
-  grid-template-columns:70px minmax(0,1fr) auto;
+  grid-template-columns:70px minmax(0,1fr);
   align-items:center;
   gap:14px;
   padding:16px;
@@ -2258,28 +2259,47 @@ canvas:focus-visible,
   border:4px solid #090b2d;
   box-shadow:6px 6px 0 #090b2d;
 }
-.now-playing-card>span{font-size:50px;text-align:center}
-.now-playing-card>div{min-width:0}
-.now-playing-card small,.now-playing-card strong,.now-playing-card p{display:block}
-.now-playing-card small{font-weight:900;letter-spacing:1.3px}
-.now-playing-card strong{font-size:23px;overflow-wrap:anywhere}
-.now-playing-card p{margin:2px 0 0!important;font-size:16px!important}
-.now-playing-card>a{
-  min-height:52px;
-  display:grid;
-  place-items:center;
-  padding:10px 14px;
-  color:white;
-  background:#3a166d;
-  border:4px solid #090b2d;
-  box-shadow:4px 4px 0 #090b2d;
-  font-size:16px;
-  font-weight:900;
-  text-decoration-thickness:2px;
+.playlist-launch-card>.praise-step-heading{
+  grid-column:1/-1;
+  width:100%;
 }
-.now-playing-card>a:focus-visible{
+.playlist-launch-card>span{font-size:50px;text-align:center}
+.playlist-launch-card>div:not(.praise-step-heading){min-width:0}
+.playlist-launch-card>div:not(.praise-step-heading)>strong{display:block;font-size:23px;overflow-wrap:anywhere}
+.playlist-launch-card>div:not(.praise-step-heading)>p{margin:2px 0 0!important;font-size:16px!important}
+.playlist-launch-button{
+  grid-column:1/-1;
+  min-height:84px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  width:100%;
+  padding:15px 18px;
+  color:white;
+  background:linear-gradient(145deg,#4a197d,#7020a1);
+  border:4px solid #090b2d;
+  box-shadow:6px 6px 0 #090b2d,0 0 22px rgba(127,40,183,.35);
+  font-size:clamp(20px,4vw,28px);
+  font-weight:900;
+  line-height:1.2;
+  text-align:center;
+  text-decoration:none;
+}
+.playlist-launch-button>.pixel-icon{width:34px!important;height:34px!important}
+.playlist-launch-button:focus-visible{
   outline:5px solid #fff33f;
   outline-offset:5px;
+}
+.playlist-privacy-note{
+  grid-column:1/-1;
+  margin:3px 0 0!important;
+  padding:11px;
+  background:#d7f8ff;
+  border:3px dashed #090b2d;
+  font-size:15px!important;
+  font-weight:900;
+  line-height:1.45!important;
 }
 .tiny-mission,.signal-check{
   margin-top:20px;
@@ -2358,8 +2378,7 @@ canvas:focus-visible,
   .power-need{min-height:185px}
   .song-card{grid-template-columns:58px minmax(0,1fr);min-height:126px}
   .song-card>b{grid-column:1/-1;text-align:center}
-  .now-playing-card{grid-template-columns:58px minmax(0,1fr)}
-  .now-playing-card>a{grid-column:1/-1;width:100%}
+  .playlist-launch-card{grid-template-columns:58px minmax(0,1fr)}
   .signal-check>div:last-of-type{grid-template-columns:1fr}
   .signal-check button{min-height:100px}
   .reset-play-actions{grid-template-columns:1fr}

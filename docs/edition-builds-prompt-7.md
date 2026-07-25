@@ -89,7 +89,7 @@ The strings below are the complete unique inventory of text that can appear or b
 25. `Faith without pressure`
 26. `Use the Bible campfire only when the child wants it. Keep God’s love unconditional; never connect legal outcomes or difficult feelings to faithfulness.`
 27. `Familiar music`
-28. `Praise Power-Up opens only a family-approved external song after a deliberate tap. It never embeds, autoplays, tracks, or records the child’s signal check.`
+28. `Praise Power-Up opens only the parent-curated playlist after a deliberate tap. It never embeds, autoplays, modifies the playlist, tracks listening activity, or records the child’s signal check.`
 29. `Safe, not suppressed`
 30. `Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.`
 31. `Safety plan`

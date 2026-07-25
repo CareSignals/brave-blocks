@@ -6,11 +6,10 @@ The old Beat Lab has been replaced by **Praise Power-Up**. DJ Glorp now hosts a
 short music-regulation quest:
 
 1. Pick a body need: **Calm, Brave, Comfort, Joy, or Sleep**.
-2. Pick a family-approved song from that lane.
-3. Deliberately open the song in a new tab.
-4. Choose an optional tiny mission or **Just Listen**.
-5. Check the signal: **A lot, A little, or Not yet**.
-6. Every answer receives the same quest completion path and XP.
+2. Choose an optional tiny mission or **Just Listen**.
+3. Deliberately open the parent-curated playlist in a new tab.
+4. On returning, check the signal: **A lot, A little, or Not yet**.
+5. Every answer receives the same quest completion path and XP.
 
 “Not yet” is explicitly non-failure language: “That’s okay. You still listened
 to your signal.” The regulation pass remains available and still earns the W.
@@ -26,9 +25,9 @@ music for regulation and does not duplicate the story quest.
   disappear.
 - Reward logic is identical for all three check-in answers, so the game does not
   train a child to report improvement.
-- Familiar music is represented as an adult-approved external link. The game
-  does not embed a player, autoplay media, add ads, call a music API, or require
-  a login.
+- Familiar music is represented as one adult-approved external playlist link.
+  The game does not embed a player, autoplay media, search, recommend, call a
+  music API, modify the playlist, or require a login.
 - DJ Glorp, large pixel-art cards, low-reading-load labels, and concrete objects
   keep the flow playful instead of clinical.
 
@@ -107,10 +106,15 @@ category must have at least one track. URLs must use HTTPS and cannot include
 query parameters named `name`, `child`, `profile`, `emotion`, `feeling`,
 `signal`, `result`, or `answer`.
 
-The supplied family-approved favorite is **“Better Is One Day” by Boston
-Church**, using the caregiver-provided YouTube URL. It is intentionally repeated
-across the five lanes with different tiny missions until the family approves
-more links.
+The Moses profile uses the caregiver-provided **Moses’ Jesus Songs** YouTube
+Music playlist in every power lane, with a different optional mission for each
+lane. Only one large **Play Moses’ Jesus Songs** button is shown at a time. The
+share-only `si` parameter was removed; the playlist ID is sufficient to open the
+curated list.
+
+Brave Blocks remembers only that its external-link button was tapped, in memory,
+so the returning child can see the signal check. It never receives the chosen
+track, playback history, watch time, YouTube account data, or playlist changes.
 
 External providers can apply their own cookies, recommendations, advertising,
 and privacy rules after the grown-up or child deliberately opens a link. Brave
@@ -157,7 +161,8 @@ prerecorded narration; it does not store gameplay choices.
 - separation of Moses and generic profiles;
 - absence of sensitive case language in the Moses profile;
 - pixel-art inventory coverage;
-- deliberate external links with no embed or autoplay;
+- a deliberate playlist link with no embed, autoplay, search, recommendation,
+  API integration, or share-tracking token;
 - optional mission, pass, single-award guard, and reset wiring;
 - no child-state storage, transmission, or analytics; and
 - 350/620px responsive rules, reduced motion, focus, target size, and ARIA

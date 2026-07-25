@@ -1247,6 +1247,7 @@ function PraisePowerUp({
   const [need, setNeed] = useState<PowerNeedId | null>(null);
   const [song, setSong] = useState<SongTrack | null>(null);
   const [missionChoice, setMissionChoice] = useState<"try" | "listen" | null>(null);
+  const [hasOpenedPlaylist, setHasOpenedPlaylist] = useState(false);
   const [signalChoice, setSignalChoice] = useState<SignalChangeId | null>(null);
   const [completed, setCompleted] = useState(false);
   const completionLocked = useRef(false);
@@ -1255,9 +1256,11 @@ function PraisePowerUp({
 
   const chooseNeed = (id: PowerNeedId) => {
     playSound("tap", muted);
+    const availableSongs = tracksForNeed(songLibrary, id);
     setNeed(id);
-    setSong(null);
+    setSong(availableSongs.length === 1 ? availableSongs[0] : null);
     setMissionChoice(null);
+    setHasOpenedPlaylist(false);
     setSignalChoice(null);
     setCompleted(false);
     completionLocked.current = false;
@@ -1266,6 +1269,7 @@ function PraisePowerUp({
     playSound("open", muted);
     setSong(track);
     setMissionChoice(null);
+    setHasOpenedPlaylist(false);
     setSignalChoice(null);
     setCompleted(false);
     completionLocked.current = false;
@@ -1333,24 +1337,15 @@ function PraisePowerUp({
         <button className="praise-back" onClick={() => {
           setSong(null);
           setMissionChoice(null);
+          setHasOpenedPlaylist(false);
           setSignalChoice(null);
           setCompleted(false);
           completionLocked.current = false;
-        }}>← PICK ANOTHER SONG</button>
-        <div className="now-playing-card">
-          <span><PixelIcon icon={song.icon ?? "🎵"} /></span>
-          <div><small>YOUR POWER TRACK</small><strong>{song.title}</strong><p>{song.artist}</p></div>
-          <a
-            href={safeExternalSongUrl(song.url)}
-            target="_blank"
-            rel="noopener noreferrer external"
-            referrerPolicy="no-referrer"
-            aria-label={`Open ${song.title} by ${song.artist} in a new tab`}
-          >OPEN SONG ↗</a>
-        </div>
+          if (songs.length === 1) setNeed(null);
+        }}>{songs.length === 1 ? "← CHANGE POWER" : "← PICK ANOTHER SONG"}</button>
 
         <div className="tiny-mission">
-          <div className="praise-step-heading"><span>3</span><div><small>OPTIONAL SIDE QUEST</small><h3 id="mission-title">Your tiny mission</h3></div></div>
+          <div className="praise-step-heading"><span>{songs.length === 1 ? "2" : "3"}</span><div><small>OPTIONAL SIDE QUEST</small><h3 id="mission-title">Your tiny mission</h3></div></div>
           <p><strong>{song.prompt}</strong><br />Pick one, or just listen. Both count.</p>
           <div>
             <button aria-pressed={missionChoice === "try"} className={missionChoice === "try" ? "active" : ""} onClick={() => setMissionChoice("try")}><PixelIcon icon="✨" /> I CAN TRY</button>
@@ -1358,8 +1353,27 @@ function PraisePowerUp({
           </div>
         </div>
 
-        {missionChoice && <div className="signal-check" role="group" aria-labelledby="signal-check-title">
-          <div className="praise-step-heading"><span>4</span><div><small>CHECK AGAIN</small><h3 id="signal-check-title">Did your signal change?</h3></div></div>
+        {missionChoice && <div className="playlist-launch-card">
+          <div className="praise-step-heading"><span>{songs.length === 1 ? "3" : "4"}</span><div><small>FAMILY-APPROVED PLAYLIST</small><h3>Ready to listen?</h3></div></div>
+          <span><PixelIcon icon={song.icon ?? "🎵"} /></span>
+          <div><strong>{song.title}</strong><p>{song.artist}</p></div>
+          <a
+            className="playlist-launch-button"
+            href={safeExternalSongUrl(song.url)}
+            target="_blank"
+            rel="noopener noreferrer external"
+            referrerPolicy="no-referrer"
+            aria-label={`${song.launchLabel ?? `Play ${song.title}`} in a new tab`}
+            onClick={() => {
+              setHasOpenedPlaylist(true);
+              playSound("open", muted);
+            }}
+          ><PixelIcon icon="▶️" /> {song.launchLabel ?? "PLAY FAMILY-APPROVED MUSIC"}</a>
+          <p className="playlist-privacy-note"><PixelIcon icon="🔐" /> Opens YouTube Music in a new tab. Brave Blocks cannot see which song you choose or what you do there.</p>
+        </div>}
+
+        {hasOpenedPlaylist && <div className="signal-check" role="group" aria-labelledby="signal-check-title">
+          <div className="praise-step-heading"><span>{songs.length === 1 ? "4" : "5"}</span><div><small>WELCOME BACK · CHECK AGAIN</small><h3 id="signal-check-title">Did your signal change?</h3></div></div>
           <div>{signalChanges.map((choice) => <button
             key={choice.id}
             disabled={completed}
