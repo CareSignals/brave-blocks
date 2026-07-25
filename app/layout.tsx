@@ -7,6 +7,16 @@ export const metadata: Metadata = {
   description: "A de-identified professional preview of a playful emotional-learning game for an early reader.",
   manifest: "/brave-blocks/manifest.webmanifest",
   applicationName: "Brave Blocks",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true
+    }
+  },
   appleWebApp: { capable: true, title: "Brave Blocks", statusBarStyle: "black-translucent" },
   icons: {
     icon: [{ url: "/brave-blocks/favicon.svg", type: "image/svg+xml" }, { url: "/brave-blocks/icon-192.png", sizes: "192x192", type: "image/png" }],

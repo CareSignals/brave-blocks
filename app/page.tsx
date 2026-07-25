@@ -214,10 +214,10 @@ function VoiceLab({ onClose }: { onClose: () => void }) {
       <p>This original gaming-adventure narrator is prerecorded, so it sounds the same on the phone, computer, and Fire tablet.</p>
       <div className="voice-grid single">
         <button className="voice-card active" onClick={() => say(NARRATOR_SAMPLE)}>
-          <span><PixelIcon icon="🎮" /></span><strong>MOSES GAMER YOUTUBER</strong><small>Playful Minecraft quest energy + gentle support</small><i><PixelIcon icon="🔊" /> TAP TO HEAR</i>
+          <span><PixelIcon icon="🎮" /></span><strong>PIXEL QUEST HOST</strong><small>Playful block-building quest energy + gentle support</small><i><PixelIcon icon="🔊" /> TAP TO HEAR</i>
         </button>
       </div>
-      <div className="voice-note"><strong><PixelIcon icon="🔐" /> PRIVATE BY DESIGN</strong><p>The voice is already inside the game. Moses’s taps and choices are never sent to a voice service.</p></div>
+      <div className="voice-note"><strong><PixelIcon icon="🔐" /> PRIVATE BY DESIGN</strong><p>The voice is already inside the game. The player’s taps and choices are never sent to a voice service.</p></div>
       <p className="device-voice-note">No robotic phone or tablet voice. No celebrity, influencer, or character imitation.</p>
       <button className="primary" onClick={onClose}>LOCK IT IN →</button>
     </section>
@@ -936,7 +936,6 @@ function FaithQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
       <h2>BIBLE STORY CAMP</h2>
       <div className="camp-buttons">
         <button onClick={() => say("Jesus loves me. I am loved on easy days and hard days.")}><PixelIcon icon="🔊" /> JESUS LOVES ME</button>
-        <a href="https://www.youtube.com/watch?v=ILEdpepg7D0" target="_blank" rel="noopener noreferrer"><PixelIcon icon="▶" /> FAVORITE SONG: BETTER IS ONE DAY</a>
       </div>
     </div>
     <div className="story-grid">{stories.map((item) => <button key={item.title} className={story?.title === item.title ? "story-card active" : "story-card"} onClick={() => openStory(item)}>
@@ -1105,7 +1104,7 @@ export default function HomePage() {
       <div className="game-stats"><XPBar xp={xp} /><div className="badge-bar">{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < badges.length} />)}</div></div>
       <div className="header-actions">
         <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}><PixelIcon icon={muted ? "🔇" : "🔊"} /></button>
-        <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Moses Gamer Youtuber narrator"><PixelIcon icon="🎮" /><span>VOICE</span></button>
+        <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Pixel Quest Host narrator"><PixelIcon icon="🎮" /><span>VOICE</span></button>
         <button className="listen-button" onClick={() => say(pageWords[quest])}><PixelIcon icon="🔊" /> <span>READ</span></button>
         <button className="guide-button" onClick={() => go("grownups")}><PixelIcon icon="🔑" /> <span>GROWN-UPS</span></button>
       </div>

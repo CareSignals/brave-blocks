@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { narrationLines } from "./narration-lines.mjs";
 
-const VOICE_NAME = "Moses Gamer Youtuber";
+const VOICE_NAME = process.env.ELEVENLABS_VOICE_NAME ?? "Pixel Quest Host";
 const API_ROOT = "https://api.elevenlabs.io";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const audioDirectory = join(root, "public", "audio", "narration");
