@@ -31,9 +31,22 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Test Praise Power-Up configuration
+        run: pnpm praise:test
+      - name: Build and audit generic profile
+        env:
+          NEXT_PUBLIC_BRAVE_BLOCKS_EDITION: CHILD
+          NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE: GENERIC
+        run: |
+          pnpm exec next build --webpack
+          pnpm edition:finalize
+          pnpm edition:audit
+          pnpm offline:verify
+          pnpm offline:test
       - name: Build and audit CHILD edition
         env:
           NEXT_PUBLIC_BRAVE_BLOCKS_EDITION: CHILD
+          NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE: MOSES
         run: |
           pnpm exec next build --webpack
           pnpm edition:finalize
@@ -43,6 +56,7 @@ jobs:
       - name: Build REVIEW edition for deployment
         env:
           NEXT_PUBLIC_BRAVE_BLOCKS_EDITION: REVIEW
+          NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE: MOSES
         run: |
           pnpm exec next build --webpack
           pnpm edition:finalize

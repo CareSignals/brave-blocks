@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import activeProfile from "@active-profile";
 import { BRAVE_BLOCKS_EDITION, IS_REVIEW_EDITION } from "./edition";
 import "./globals.css";
 
@@ -45,5 +46,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" data-edition={BRAVE_BLOCKS_EDITION.toLowerCase()}><body>{children}</body></html>;
+  return <html
+    lang="en"
+    data-edition={BRAVE_BLOCKS_EDITION.toLowerCase()}
+    data-profile={activeProfile.id}
+  ><body>{children}</body></html>;
 }

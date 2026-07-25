@@ -89,7 +89,6 @@ const questIntroductions = [
   ["Build Mode", "Stack your support squad."],
   ["Safety Power-Ups", "Huge feeling. Safe body. Both can be true."],
   ["Pixel Parkour", "Jump slime. Grab snacks. Get the W."],
-  ["Chaos Beat Lab", "Make a house beat. Drop a silly rap."],
   ["Faith Campfire", "Tap a story. Find a hope gem."],
   ["Grown-up Guide", "Keep the fun child-led and the child’s answers their own."],
 ];
@@ -104,7 +103,6 @@ const pageReadouts = [
   "Build Mode. Tap your support blocks.",
   "Safety Power Ups. Pick a safe mission for your hands, body, words, and repairs.",
   "Pixel Parkour. Tap jump before slime or blocks. Then tap go.",
-  "Chaos Beat Lab. Start the house beat. Then tap the character pads.",
   "Faith Campfire. Tap a Bible story to find a hope gem.",
   "Grown-up guide.",
 ];
@@ -147,14 +145,6 @@ const coOpMissions = [
   "Build a tiny blanket or pillow base together.",
   "Take turns saying one thing that helps on a hard day.",
   "Do a ten-second freeze dance, then both get cozy.",
-];
-
-const beatLines = [
-  "Axo Maxxo, glow on patrol!",
-  "Capy Bappy, chill superstar!",
-  "Dumpling Supreme with the snack attack!",
-  "DJ Glorp on the slime beat!",
-  "Axo on patrol. Capy got the glow. Dumpling in the slime beat. Brave heart, let's go!",
 ];
 
 const stories = [
@@ -210,7 +200,6 @@ const lines = [
   "Jump ready!",
   "Boink! Tap jump first.",
   "Parkour W. You made it!",
-  ...beatLines,
   "Jesus loves me. I am loved on easy days and hard days.",
   ...stories.flatMap(([title, story, gem]) => [
     `${title}. ${story} ${gem}`,

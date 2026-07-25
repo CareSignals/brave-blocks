@@ -6,10 +6,12 @@ import {
   currentEdition,
   reviewOnlyNarrationLines,
 } from "./edition-policy.mjs";
+import { currentProfile } from "./profile-policy.mjs";
 
 const root = process.cwd();
 const output = join(root, "out");
 const edition = currentEdition();
+const profile = currentProfile();
 const textExtensions = new Set([".css", ".html", ".js", ".json", ".svg", ".txt", ".webmanifest"]);
 
 async function walk(directory) {
@@ -36,6 +38,34 @@ const fullNarrationIndex = JSON.parse(
 const childNarrationIndex = JSON.parse(
   await readFile(join(root, "app", "narration-index.child.json"), "utf8"),
 );
+
+assert.match(
+  markup,
+  new RegExp(`data-profile="${profile.toLowerCase()}"`),
+  `The export must identify itself as the ${profile} profile.`,
+);
+
+if (profile === "GENERIC") {
+  const genericViolations = [];
+  const mosesOnlyPatterns = [
+    { label: "Moses name", pattern: /\bMoses\b/gi },
+    { label: "Moses mode label", pattern: /MOSES MODE/gi },
+    { label: "Moses station name", pattern: /Jesus Song Station/gi },
+    { label: "Moses power phrase", pattern: /I need a minute, bro/gi },
+  ];
+  for (const path of textFiles) {
+    const text = await readFile(path, "utf8");
+    for (const { label, pattern } of mosesOnlyPatterns) {
+      pattern.lastIndex = 0;
+      if (pattern.test(text)) genericViolations.push(`${relative(output, path)}: ${label}`);
+    }
+  }
+  assert.deepEqual(
+    genericViolations,
+    [],
+    `Generic build contains Moses-profile wording:\n${genericViolations.join("\n")}`,
+  );
+}
 
 if (edition === "CHILD") {
   assert.match(markup, /data-edition="child"/, "The export must identify itself as CHILD.");
@@ -94,4 +124,4 @@ if (edition === "CHILD") {
   }
 }
 
-console.log(`${edition} edition audit passed across ${textFiles.length} text assets.`);
+console.log(`${edition}/${profile} audit passed across ${textFiles.length} text assets.`);

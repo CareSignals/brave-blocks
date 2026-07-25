@@ -89,7 +89,7 @@ The strings below are the complete unique inventory of text that can appear or b
 25. `Faith without pressure`
 26. `Use the Bible campfire only when the child wants it. Keep God’s love unconditional; never connect legal outcomes or difficult feelings to faithfulness.`
 27. `Familiar music`
-28. `The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play.`
+28. `Praise Power-Up opens only a family-approved external song after a deliberate tap. It never embeds, autoplays, tracks, or records the child’s signal check.`
 29. `Safe, not suppressed`
 30. `Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress.`
 31. `Safety plan`
@@ -110,10 +110,10 @@ The strings below are the complete unique inventory of text that can appear or b
 | Attorney and social-worker introductions | Trusted Grown-up and My Grown-up |
 | `HEAR INTRO` | `HEAR NAME` |
 | `Counselor` support block | Omitted |
-| 191 narration phrases | 186 child-safe narration phrases |
+| 184 narration phrases | 179 child-safe narration phrases |
 
 ## Verification completed
 
-- CHILD: 10 quest modules, 112 pixel icons, 186 narration files, and zero network requests after the first online load.
-- REVIEW: 10 quest modules, 112 pixel icons, 191 narration files, and zero network requests after the first online load.
+- CHILD: 10 quest modules, 112 pixel icons, 179 narration files, and zero network requests after the first online load.
+- REVIEW: 10 quest modules, 112 pixel icons, 184 narration files, and zero network requests after the first online load.
 - Both manifests, edition markers, narration indexes, file sets, and service-worker readiness responses are checked automatically.

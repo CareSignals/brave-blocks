@@ -54,7 +54,7 @@ const content: EditionContent = {
       { icon: "🗣️", title: "Helpful phrases", body: "“All feelings are allowed.” “You don’t have to fix grown-up feelings.” “I’ll love you after any answer.”" },
       { icon: "🤝", title: "Share the tool", body: "Let the child’s clinician, attorney, and social worker adjust meeting language for the child’s developmental needs." },
       { icon: "✨", title: "Faith without pressure", body: "Use the Bible campfire only when the child wants it. Keep God’s love unconditional; never connect legal outcomes or difficult feelings to faithfulness." },
-      { icon: "🎵", title: "Familiar music", body: "The Beat Lab uses original sounds. You can play his favorite recordings separately from your own licensed music service during free play." },
+      { icon: "🎵", title: "Familiar music", body: "Praise Power-Up opens only a family-approved external song after a deliberate tap. It never embeds, autoplays, tracks, or records the child’s signal check." },
       { icon: "👐", title: "Safe, not suppressed", body: "Validate the feeling first, then offer two safe choices. Practice the Safety Power-Ups when he is regulated—not as a demand during peak distress." },
       { icon: "🛡️", title: "Safety plan", body: "If anyone is in immediate danger, move people and unsafe objects apart, get help, and follow the safety plan made with his clinician or pediatrician." },
       { icon: "🎙️", title: "Original voice only", body: "The prerecorded narrator sounds consistent across devices and does not imitate a celebrity, artist, influencer, or copyrighted character." },

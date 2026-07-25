@@ -44,6 +44,9 @@ next-env.d.ts
 /drizzle/
 /examples/
 /tests/
+!/tests/
+/tests/*
+!/tests/praise-power-up.test.mjs
 /worker/
 /package-lock.json
 /drizzle.config.ts

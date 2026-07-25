@@ -4,7 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import narrationIndex from "@edition-narration";
 import editionContent from "@edition-content";
+import activeProfile from "@active-profile";
+import songLibrary from "@song-library";
 import { BRAVE_BLOCKS_EDITION, IS_REVIEW_EDITION } from "./edition";
+import {
+  powerNeeds,
+  safeExternalSongUrl,
+  signalAffirmation,
+  signalChanges,
+  tracksForNeed,
+  validateSongLibrary,
+  type SignalChangeId,
+} from "./praise-power-up";
+import type { EasterEgg } from "./profile.types";
+import type { PowerNeedId, SongTrack } from "./song-library.types";
 
 type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
 type Loot = { icon: string; name: string; line: string };
@@ -87,14 +100,20 @@ const meetingRounds = [
 
 const supportBlocks = [
   { icon: "🏠", label: "Home" },
-  { icon: "💛", label: "Trusted grown-up" },
-  { icon: "💚", label: "My grown-up" },
+  ...activeProfile.trustedGrownupLabels.map((label, index) => ({
+    icon: index === 0 ? "💛" : "💚",
+    label,
+  })),
   { icon: "🧸", label: "Cozy thing" },
   { icon: "🐾", label: "Animal" },
   { icon: "🏫", label: "School helper" },
   { icon: "⭐", label: "My person" },
   ...editionContent.supportBlocks,
 ];
+const songConfigurationErrors = validateSongLibrary(songLibrary);
+if (songConfigurationErrors.length) {
+  throw new Error(`Praise Power-Up song configuration is invalid:\n${songConfigurationErrors.join("\n")}`);
+}
 const calmSteps = [
   { label: "BREATHE IN", time: 4000 }, { label: "HOLD", time: 2000 },
   { label: "BLOW OUT", time: 5000 }, { label: "RESET", time: 1500 },
@@ -137,7 +156,7 @@ function waitForWorkerActivation(worker: ServiceWorker) {
 }
 
 function requestOfflineStatus(worker: ServiceWorker) {
-  return new Promise<{ status?: string; edition?: string }>((resolve, reject) => {
+  return new Promise<{ status?: string; edition?: string; profile?: string }>((resolve, reject) => {
     const channel = new MessageChannel();
     const timeout = window.setTimeout(() => reject(new Error("Offline readiness check timed out.")), 15000);
     channel.port1.onmessage = (event) => {
@@ -151,7 +170,7 @@ function requestOfflineStatus(worker: ServiceWorker) {
 async function prepareOfflinePack(): Promise<OfflineStatus> {
   if (!("serviceWorker" in navigator)) return "unsupported";
   const registration = await navigator.serviceWorker.register(
-    `${PUBLIC_BASE}/sw.js?edition=${BRAVE_BLOCKS_EDITION}`,
+    `${PUBLIC_BASE}/sw.js?edition=${BRAVE_BLOCKS_EDITION}&profile=${activeProfile.id.toUpperCase()}`,
   );
   const changingWorker = registration.installing ?? registration.waiting;
   if (changingWorker) await waitForWorkerActivation(changingWorker);
@@ -159,8 +178,12 @@ async function prepareOfflinePack(): Promise<OfflineStatus> {
   const activeWorker = registration.active ?? readyRegistration.active ?? navigator.serviceWorker.controller;
   if (!activeWorker) throw new Error("No active offline worker.");
   const reply = await requestOfflineStatus(activeWorker);
-  if (reply.status !== "ready" || reply.edition !== BRAVE_BLOCKS_EDITION) {
-    throw new Error("Offline pack is incomplete or belongs to another edition.");
+  if (
+    reply.status !== "ready"
+    || reply.edition !== BRAVE_BLOCKS_EDITION
+    || reply.profile !== activeProfile.id.toUpperCase()
+  ) {
+    throw new Error("Offline pack is incomplete or belongs to another edition or player mode.");
   }
   return "ready";
 }
@@ -586,7 +609,8 @@ function PausePortal({ onClose }: { onClose: () => void }) {
 }
 
 function Home({
-  go, avatar, setAvatar, xp, collection, claimed, claimBonus, openInstallSetup, requestInstallCheck,
+  go, avatar, setAvatar, xp, collection, claimed, mysteryEgg, claimBonus,
+  requestReset, openInstallSetup, requestInstallCheck,
 }: {
   go: (quest: Quest) => void;
   avatar: string;
@@ -594,7 +618,9 @@ function Home({
   xp: number;
   collection: Loot[];
   claimed: boolean;
+  mysteryEgg: EasterEgg | null;
   claimBonus: () => void;
+  requestReset: () => void;
   openInstallSetup: () => void;
   requestInstallCheck: () => void;
 }) {
@@ -607,7 +633,7 @@ function Home({
     { id: "base" as Quest, icon: "🏰", title: "Build Mode", text: "Stack your squad", color: "green", tag: "CREATIVE MODE" },
     { id: "safety" as Quest, icon: "👐", title: "Safety Power-Ups", text: "Give your body a mission", color: "red", tag: "GENTLE MODE" },
     { id: "parkour" as Quest, icon: "☁️", title: "Pixel Parkour", text: "Jump the slime", color: "teal", tag: "ARCADE MODE" },
-    { id: "beats" as Quest, icon: "🎛️", title: "Beat Lab", text: "Make chaos music", color: "pink", tag: "HOUSE MODE" },
+    { id: "beats" as Quest, icon: "🎵", title: activeProfile.stationTitle, text: activeProfile.stationSubtitle, color: "pink", tag: "MUSIC MODE" },
     { id: "faith" as Quest, icon: "✨", title: "Faith Campfire", text: "Tap a Bible story", color: "gold", tag: "STORY MODE" },
   ];
 
@@ -624,7 +650,7 @@ function Home({
       />
       <div className="hero-status">
         <span className="status-avatar"><PixelIcon icon={avatar} /></span>
-        <div><small>PLAYER HAS ENTERED THE WORLD</small><strong>CHOOSE A PLAYER · PICK A QUEST · GET THE W</strong></div>
+        <div><small>{activeProfile.playerLabel} HAS ENTERED THE WORLD</small><strong>CHOOSE A PLAYER · PICK A QUEST · GET THE W</strong></div>
         <span className="status-live">● SAFE BASE ONLINE</span>
       </div>
       <div className="promise key-art-promise">
@@ -639,12 +665,25 @@ function Home({
         <div className="avatar-row">{avatars.map((a) => <button key={a.name} title={a.name} aria-label={`Choose ${a.name}`} aria-pressed={avatar === a.icon} className={avatar === a.icon ? "avatar-pick active" : "avatar-pick"} onClick={() => { playSound("tap", false); say(`${a.name} selected`); setAvatar(a.icon); }}><PixelIcon icon={a.icon} /></button>)}</div>
       </div>
       <button className={claimed ? "mystery claimed" : "mystery"} onClick={claimBonus} disabled={claimed}>
-        <span>{claimed ? <PixelIcon icon="✨" /> : "?"}</span>
-        <strong>{claimed ? "DAILY W CLAIMED" : "CRACK MYSTERY BLOCK"}</strong>
-        <small>{claimed ? "+25 XP · huge" : "tap for surprise XP"}</small>
+        <span>{claimed ? <PixelIcon icon={mysteryEgg?.icon ?? "✨"} /> : "?"}</span>
+        <strong>{claimed ? mysteryEgg?.title ?? "MYSTERY W CLAIMED" : "CRACK MYSTERY BLOCK"}</strong>
+        <small>{claimed ? mysteryEgg?.line ?? "+25 XP · huge" : "tap for surprise XP"}</small>
       </button>
       <div className="mini-inventory"><small>YOUR LOOT</small><div>{collection.length ? collection.slice(-5).map((item, i) => <span title={item.name} key={`${item.name}-${i}`}><PixelIcon icon={item.icon} /></span>) : <p>win a quest →</p>}</div></div>
     </section>
+
+    <details className="power-kit">
+      <summary><span><PixelIcon icon="🎒" /></span><span className="power-kit-summary-copy"><small>{activeProfile.modeLabel}</small><strong>MY POWER KIT</strong><em>{activeProfile.favoriteComfortTools.length} choices inside</em></span><b>OPEN +</b></summary>
+      <div className="power-kit-panel">
+        <p><strong>I have choices when my signal gets big.</strong> I do not have to fix it fast.</p>
+        <ul>{activeProfile.favoriteComfortTools.map((tool) => <li key={tool.id}><PixelIcon icon={tool.icon} /><span>{tool.label}</span></li>)}</ul>
+        <div className="power-kit-buddy">
+          <span><PixelIcon icon={activeProfile.animalCompanion?.icon ?? "🐾"} /></span>
+          <p><small>POWER PHRASE</small><strong>“{activeProfile.preferredPhrases[0]}”</strong></p>
+        </div>
+        <button className="reset-play-button" onClick={requestReset}><PixelIcon icon="🔁" /> GROWN-UP · RESET THIS PLAY</button>
+      </div>
+    </details>
 
     <section className="crew-section">
       <div className="crew-title"><small>THE CHAOS CREW</small><strong>Original weird little legends</strong></div>
@@ -1196,85 +1235,144 @@ function ParkourQuest({ earn, avatar, muted }: { earn: () => void; avatar: strin
   </QuestShell>;
 }
 
-function BeatQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
-  const beatRef = useRef<{ audio: AudioContext; timer: number; beat: number } | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [hits, setHits] = useState<string[]>([]);
-  const [dancer, setDancer] = useState("🟢");
+function PraisePowerUp({
+  earn,
+  skip,
+  muted,
+}: {
+  earn: (affirmation: string) => void;
+  skip: () => void;
+  muted: boolean;
+}) {
+  const [need, setNeed] = useState<PowerNeedId | null>(null);
+  const [song, setSong] = useState<SongTrack | null>(null);
+  const [missionChoice, setMissionChoice] = useState<"try" | "listen" | null>(null);
+  const [signalChoice, setSignalChoice] = useState<SignalChangeId | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const completionLocked = useRef(false);
+  const selectedNeed = powerNeeds.find((item) => item.id === need);
+  const songs = need ? tracksForNeed(songLibrary, need) : [];
 
-  const tone = (audio: AudioContext, frequency: number, length = .08, type: OscillatorType = "square") => {
-    const oscillator = audio.createOscillator();
-    const gain = audio.createGain();
-    oscillator.type = type;
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(.05, audio.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + length);
-    oscillator.connect(gain); gain.connect(audio.destination);
-    oscillator.start(); oscillator.stop(audio.currentTime + length);
+  const chooseNeed = (id: PowerNeedId) => {
+    playSound("tap", muted);
+    setNeed(id);
+    setSong(null);
+    setMissionChoice(null);
+    setSignalChoice(null);
+    setCompleted(false);
+    completionLocked.current = false;
   };
-  const stopBeat = () => {
-    if (!beatRef.current) return;
-    window.clearInterval(beatRef.current.timer);
-    beatRef.current.audio.close();
-    beatRef.current = null;
-    setPlaying(false);
+  const chooseSong = (track: SongTrack) => {
+    playSound("open", muted);
+    setSong(track);
+    setMissionChoice(null);
+    setSignalChoice(null);
+    setCompleted(false);
+    completionLocked.current = false;
+    say("Music landing pad.");
   };
-  const startBeat = () => {
-    if (playing || muted) return;
-    const AudioCtor = window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtor) return;
-    const audio = new AudioCtor();
-    const state = { audio, timer: 0, beat: 0 };
-    const pulse = () => {
-      const n = state.beat++;
-      tone(audio, n % 4 === 0 ? 82 : 170, n % 4 === 0 ? .18 : .035, n % 4 === 0 ? "sine" : "square");
-      if (n % 2 === 1) tone(audio, 880, .025, "triangle");
-    };
-    pulse();
-    state.timer = window.setInterval(pulse, 250);
-    beatRef.current = state;
-    setPlaying(true);
-  };
-  useEffect(() => {
-    const pauseBeat = () => stopBeat();
-    window.addEventListener("brave-blocks-pause", pauseBeat);
-    return () => {
-      window.removeEventListener("brave-blocks-pause", pauseBeat);
-      stopBeat();
-    };
-  }, []);
-
-  const pads = [
-    { icon: "🦎", name: "AXO", words: "Axo Maxxo, glow on patrol!", note: 523 },
-    { icon: "🐹", name: "CAPY", words: "Capy Bappy, chill superstar!", note: 392 },
-    { icon: "🥟", name: "DUMPY", words: "Dumpling Supreme with the snack attack!", note: 659 },
-    { icon: "🟢", name: "GLORP", words: "DJ Glorp on the slime beat!", note: 262 },
-  ];
-  const hit = (pad: (typeof pads)[number]) => {
-    setDancer(pad.icon);
-    setHits((items) => [...items, pad.name]);
-    say(pad.words);
-    if (beatRef.current) tone(beatRef.current.audio, pad.note, .16, "sawtooth");
-    else playSound("open", muted);
-  };
-  const rap = () => {
-    setHits((items) => [...items, "RAP"]);
-    setDancer("🤖");
-    say("Axo on patrol. Capy got the glow. Dumpling in the slime beat. Brave heart, let's go!");
+  const finish = (id: SignalChangeId) => {
+    if (completionLocked.current) return;
+    completionLocked.current = true;
+    setCompleted(true);
+    setSignalChoice(id);
+    earn(signalAffirmation(id));
   };
 
-  return <QuestShell title="Chaos Beat Lab" subtitle="Make a house beat. Drop a silly rap." icon="🎛️">
-    <div className={`beat-stage ${playing ? "playing" : ""}`}>
-      <div className="equalizer">{[1,2,3,4,5,6,7,8,9].map((n) => <i key={n} />)}</div>
-      <div className="dj"><PixelIcon icon={dancer} /><span><PixelIcon icon="🎧" /></span></div>
-      <h2 aria-live="polite">{playing ? "HOUSE MODE: BUSSIN’" : "DJ GLORP IS READY"}</h2>
-      <div className="beat-buttons"><button aria-pressed={playing} className="primary" onClick={playing ? stopBeat : startBeat}><PixelText text={playing ? "⏹ STOP BEAT" : "▶ START HOUSE BEAT"} /></button><button className="secondary" onClick={rap}><PixelIcon icon="🎤" /> DROP THE SILLY RAP</button></div>
-      {muted && <p className="muted-note"><PixelIcon icon="🔇" /> Turn sound on at the top to use the beat.</p>}
+  return <QuestShell
+    title={activeProfile.stationTitle}
+    subtitle={activeProfile.stationSubtitle}
+    icon="🎵"
+    spokenInstructions="Jesus loves me. I am loved on easy days and hard days."
+  >
+    <div
+      className="praise-station"
+      style={{
+        "--profile-accent": activeProfile.favoriteColors[0],
+        "--profile-glow": activeProfile.favoriteColors[1],
+      } as React.CSSProperties}
+    >
+      <div className="praise-dj">
+        <div className="praise-dj-avatar"><PixelIcon icon="🟢" /><span><PixelIcon icon="🎧" /></span></div>
+        <div><small>DJ GLORP’S MUSIC PORTAL</small><h2>{activeProfile.stationSubtitle}</h2><p>{activeProfile.stationIntro}</p></div>
+      </div>
+
+      {!need && <section className="praise-step" aria-labelledby="power-need-title">
+        <div className="praise-step-heading"><span>1</span><div><small>PICK A POWER</small><h3 id="power-need-title">What kind of power does your body need?</h3></div></div>
+        <div className="power-need-grid">{powerNeeds.map((item) => <button
+          key={item.id}
+          className={`power-need ${item.id}`}
+          onClick={() => chooseNeed(item.id)}
+          aria-label={`${item.label}. ${item.clue}`}
+        >
+          <span><PixelIcon icon={item.icon} /></span>
+          <small>{item.object}</small>
+          <strong>{item.label}</strong>
+          <p>{item.clue}</p>
+          <b>CHOOSE →</b>
+        </button>)}</div>
+      </section>}
+
+      {need && !song && <section className="praise-step" aria-labelledby="song-pick-title">
+        <button className="praise-back" onClick={() => setNeed(null)}>← CHANGE POWER</button>
+        <div className="praise-step-heading"><span>2</span><div><small>{selectedNeed?.label.toUpperCase()}</small><h3 id="song-pick-title">Pick a {activeProfile.musicName}</h3></div></div>
+        <div className="song-card-grid">{songs.map((track) => <button
+          key={track.id}
+          className="song-card"
+          onClick={() => chooseSong(track)}
+          aria-label={`Choose ${track.title} by ${track.artist}`}
+        >
+          <span><PixelIcon icon={track.icon ?? "🎵"} /></span>
+          <div><small>FAMILY-APPROVED LINK</small><strong>{track.title}</strong><p>{track.artist}</p></div>
+          <b>SELECT →</b>
+        </button>)}</div>
+        <p className="song-privacy-note"><PixelIcon icon="🔐" /> Nothing opens until you tap the song link.</p>
+      </section>}
+
+      {song && <section className="praise-step" aria-labelledby="mission-title">
+        <button className="praise-back" onClick={() => {
+          setSong(null);
+          setMissionChoice(null);
+          setSignalChoice(null);
+          setCompleted(false);
+          completionLocked.current = false;
+        }}>← PICK ANOTHER SONG</button>
+        <div className="now-playing-card">
+          <span><PixelIcon icon={song.icon ?? "🎵"} /></span>
+          <div><small>YOUR POWER TRACK</small><strong>{song.title}</strong><p>{song.artist}</p></div>
+          <a
+            href={safeExternalSongUrl(song.url)}
+            target="_blank"
+            rel="noopener noreferrer external"
+            referrerPolicy="no-referrer"
+            aria-label={`Open ${song.title} by ${song.artist} in a new tab`}
+          >OPEN SONG ↗</a>
+        </div>
+
+        <div className="tiny-mission">
+          <div className="praise-step-heading"><span>3</span><div><small>OPTIONAL SIDE QUEST</small><h3 id="mission-title">Your tiny mission</h3></div></div>
+          <p><strong>{song.prompt}</strong><br />Pick one, or just listen. Both count.</p>
+          <div>
+            <button aria-pressed={missionChoice === "try"} className={missionChoice === "try" ? "active" : ""} onClick={() => setMissionChoice("try")}><PixelIcon icon="✨" /> I CAN TRY</button>
+            <button aria-pressed={missionChoice === "listen"} className={missionChoice === "listen" ? "active" : ""} onClick={() => setMissionChoice("listen")}><PixelIcon icon="🎧" /> JUST LISTEN</button>
+          </div>
+        </div>
+
+        {missionChoice && <div className="signal-check" role="group" aria-labelledby="signal-check-title">
+          <div className="praise-step-heading"><span>4</span><div><small>CHECK AGAIN</small><h3 id="signal-check-title">Did your signal change?</h3></div></div>
+          <div>{signalChanges.map((choice) => <button
+            key={choice.id}
+            disabled={completed}
+            aria-pressed={signalChoice === choice.id}
+            onClick={() => finish(choice.id)}
+          ><span><PixelIcon icon={choice.icon} /></span><strong>{choice.label}</strong><small>{choice.affirmation}</small></button>)}</div>
+          <p>Every answer gets the W. Feelings do not have to disappear.</p>
+        </div>}
+      </section>}
+
+      <div className="praise-faith-note"><PixelIcon icon="💛" /><p><strong>God is with me while I feel this.</strong><br />Music missions live here. Bible stories live at Faith Campfire.</p></div>
     </div>
-    <div className="sample-pads">{pads.map((pad) => <button key={pad.name} onClick={() => hit(pad)}><span><PixelIcon icon={pad.icon} /></span><strong>{pad.name}</strong><small>TAP PAD</small></button>)}</div>
-    <p className="original-music-note"><PixelIcon icon="🎵" /> This is an original beat made inside Brave Blocks.</p>
-    {hits.length >= 4 && <button className="primary center" onClick={() => { stopBeat(); earn(); }}>MIX COMPLETE · GET LOOT →</button>}
+    <RegulationSkip onSkip={skip} />
   </QuestShell>;
 }
 
@@ -1371,9 +1469,53 @@ function GrownupGuide({ offlineStatus }: { offlineStatus: OfflineStatus }) {
   </QuestShell>;
 }
 
-function QuestShell({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: string; children: React.ReactNode }) {
+function ResetPlayDialog({
+  onClose,
+  onReset,
+}: {
+  onClose: () => void;
+  onReset: () => void;
+}) {
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(onClose);
+  return <div
+    ref={dialogRef}
+    className="portal-screen reset-play-screen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="reset-play-title"
+    aria-describedby="reset-play-copy"
+    tabIndex={-1}
+    onKeyDown={onDialogKeyDown}
+  >
+    <section className="portal-card reset-play-card">
+      <button className="portal-close" onClick={onClose} aria-label="Close reset check">×</button>
+      <span className="portal-icon"><PixelIcon icon="🔁" /></span>
+      <small>GROWN-UP CHECK</small>
+      <h2 id="reset-play-title">Reset this play?</h2>
+      <p id="reset-play-copy">This clears XP, loot, picks, and the mystery block from this open session. Nothing is stored online.</p>
+      <div className="reset-play-actions">
+        <button className="secondary" onClick={onClose}>KEEP PLAYING</button>
+        <button className="primary" onClick={onReset}>YES · START FRESH</button>
+      </div>
+    </section>
+  </div>;
+}
+
+function QuestShell({
+  title,
+  subtitle,
+  icon,
+  spokenInstructions,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  icon: string;
+  spokenInstructions?: string;
+  children: React.ReactNode;
+}) {
   return <section className="quest-page">
-    <div className="quest-heading"><span><PixelIcon icon={icon} /></span><div><small>BRAVE BLOCKS MINIGAME</small><h1 data-route-heading tabIndex={-1}>{title}</h1><p>{subtitle}</p></div><button className="read-button" aria-label={`Hear ${title} instructions`} onClick={() => say(`${title}. ${subtitle}`)}><PixelIcon icon="🔊" /><b>HEAR IT</b></button></div>
+    <div className="quest-heading"><span><PixelIcon icon={icon} /></span><div><small>BRAVE BLOCKS MINIGAME</small><h1 data-route-heading tabIndex={-1}>{title}</h1><p>{subtitle}</p></div><button className="read-button" aria-label={`Hear ${title} instructions`} onClick={() => say(spokenInstructions ?? `${title}. ${subtitle}`)}><PixelIcon icon="🔊" /><b>HEAR IT</b></button></div>
     {children}
   </section>;
 }
@@ -1382,7 +1524,7 @@ export default function HomePage() {
   const [quest, setQuest] = useState<Quest>("home");
   const [badges, setBadges] = useState<string[]>([]);
   const [xp, setXp] = useState(0);
-  const [avatar, setAvatar] = useState("🐲");
+  const [avatar, setAvatar] = useState(activeProfile.avatarIcon);
   const [collection, setCollection] = useState<Loot[]>([]);
   const [loot, setLoot] = useState<Loot | null>(null);
   const [completionReward, setCompletionReward] = useState(0);
@@ -1390,10 +1532,12 @@ export default function HomePage() {
   const [announcement, setAnnouncement] = useState("");
   const [muted, setMuted] = useState(false);
   const [claimed, setClaimed] = useState(false);
+  const [mysteryEgg, setMysteryEgg] = useState<EasterEgg | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [showPause, setShowPause] = useState(false);
   const [showVoiceLab, setShowVoiceLab] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [adultGateTarget, setAdultGateTarget] = useState<AdultArea | null>(null);
   const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>("caching");
 
@@ -1411,7 +1555,7 @@ export default function HomePage() {
     setNarrationMuted(muted);
   }, [muted]);
 
-  const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", loadout: "Choice Pack", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Glorp Record", faith: "Hope Gem", grownups: "" };
+  const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", loadout: "Choice Pack", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Praise Disc", faith: "Hope Gem", grownups: "" };
   const pageWords: Record<Quest, string> = {
     home: "Welcome back, player. Pick your character. Then pick your next W.",
     feelings: "Vibe Mixer. Tap every feeling in your mix.",
@@ -1422,7 +1566,7 @@ export default function HomePage() {
     base: "Build Mode. Tap your support blocks.",
     safety: "Safety Power Ups. Pick a safe mission for your hands, body, words, and repairs.",
     parkour: "Pixel Parkour. Tap jump before slime or blocks. Then tap go.",
-    beats: "Chaos Beat Lab. Start the house beat. Then tap the character pads.",
+    beats: "Jesus loves me. I am loved on easy days and hard days.",
     faith: "Faith Campfire. Tap a Bible story to find a hope gem.",
     grownups: editionContent.grownupRouteSpeech,
   };
@@ -1437,7 +1581,7 @@ export default function HomePage() {
     focusRouteHeading();
   };
   const awardXp = (amount: number) => setXp((value) => value + Math.max(0, amount));
-  const completeQuest = (note = "") => {
+  const completeQuest = (note = "", narrationLine?: string) => {
     const badge = names[quest];
     const firstWin = badge && !badges.includes(badge);
     const reward = firstWin ? 100 : 25;
@@ -1449,10 +1593,13 @@ export default function HomePage() {
     setLoot(prize);
     setAnnouncement(`Quest complete. ${reward} XP gained. Loot unlocked: ${prize.name}.${note ? ` ${note}` : ""} Total: ${xp + reward} XP.`);
     playSound("win", muted);
-    say(note ? "Pass unlocked. No explaining needed." : `Quest W. You unlocked ${prize.name}.`);
+    say(narrationLine ?? (note ? "Pass unlocked. No explaining needed." : `Quest W. You unlocked ${prize.name}.`));
   };
   const earn = () => completeQuest();
   const skipQuest = () => completeQuest(SKIP_AFFIRMATION);
+  const earnSignalCheck = (affirmation: string) => {
+    completeQuest(affirmation, "Jesus loves me. I am loved on easy days and hard days.");
+  };
   const closeLoot = () => {
     if (loot) setCollection((items) => [...items, loot]);
     setLoot(null); setCompletionReward(0); setCompletionNote(""); setQuest("home"); window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1460,6 +1607,8 @@ export default function HomePage() {
   };
   const claimBonus = () => {
     if (claimed) return;
+    const eggs = activeProfile.easterEggs;
+    setMysteryEgg(eggs[Math.floor(Math.random() * eggs.length)] ?? null);
     setClaimed(true);
     awardXp(25);
     setAnnouncement(`25 XP gained. Mystery block claimed. Total: ${xp + 25} XP.`);
@@ -1486,6 +1635,26 @@ export default function HomePage() {
     if (area === "guide" && IS_REVIEW_EDITION) go("grownups");
     else openInstallSetup();
   };
+  const resetSession = () => {
+    stopNarration();
+    setQuest("home");
+    setBadges([]);
+    setXp(0);
+    setAvatar(activeProfile.avatarIcon);
+    setCollection([]);
+    setLoot(null);
+    setCompletionReward(0);
+    setCompletionNote("");
+    setClaimed(false);
+    setMysteryEgg(null);
+    setShowPause(false);
+    setShowVoiceLab(false);
+    setShowReset(false);
+    setAdultGateTarget(null);
+    setAnnouncement("This play was reset. Your power kit is ready.");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    focusRouteHeading();
+  };
 
   let content: React.ReactNode;
   if (quest === "feelings") content = <Feelings earn={earn} muted={muted} />;
@@ -1496,7 +1665,7 @@ export default function HomePage() {
   else if (quest === "base") content = <BaseQuest earn={earn} muted={muted} />;
   else if (quest === "safety") content = <SafetyQuest earn={earn} skip={skipQuest} muted={muted} />;
   else if (quest === "parkour") content = <ParkourQuest earn={earn} avatar={avatar} muted={muted} />;
-  else if (quest === "beats") content = <BeatQuest earn={earn} muted={muted} />;
+  else if (quest === "beats") content = <PraisePowerUp earn={earnSignalCheck} skip={skipQuest} muted={muted} />;
   else if (quest === "faith") content = <FaithQuest earn={earn} muted={muted} />;
   else if (quest === "grownups" && IS_REVIEW_EDITION) content = <GrownupGuide offlineStatus={offlineStatus} />;
   else content = <Home
@@ -1506,7 +1675,9 @@ export default function HomePage() {
     xp={xp}
     collection={collection}
     claimed={claimed}
+    mysteryEgg={mysteryEgg}
     claimBonus={claimBonus}
+    requestReset={() => setShowReset(true)}
     openInstallSetup={() => unlockAdultArea("install")}
     requestInstallCheck={() => setAdultGateTarget("install")}
   />;
@@ -1551,6 +1722,7 @@ export default function HomePage() {
     />}
     {showPause && <PausePortal onClose={() => setShowPause(false)} />}
     {showVoiceLab && <VoiceLab onClose={() => setShowVoiceLab(false)} />}
+    {showReset && <ResetPlayDialog onClose={() => setShowReset(false)} onReset={resetSession} />}
     {adultGateTarget && <AdultGateDialog
       area={adultGateTarget}
       onClose={() => setAdultGateTarget(null)}
