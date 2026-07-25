@@ -33,7 +33,7 @@ const chaosCrew = [
   { icon: "🟢", name: "DJ GLORP", line: "Slime beat unlocked", color: "slime" },
 ];
 const lootDrops: Loot[] = [
-  { icon: "💎", name: "Truth Gem", line: "Your own words = max power." },
+  { icon: "💎", name: "Pixel Prism", line: "Tiny sparkle. Huge glow." },
   { icon: "🪄", name: "Pause Wand", line: "Need a break? Cast it." },
   { icon: "🧪", name: "Mixed-Feels Potion", line: "Two feelings can both be real." },
   { icon: "🛡️", name: "No-Cap Shield", line: "You never have to guess." },
@@ -800,7 +800,7 @@ function MeetingQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
       </div>
       {!complete && <div className="move-grid">{meetingMoves.map((m) => <button key={m.words} disabled={played} className={lastMove?.words === m.words ? "move active" : "move"} onClick={() => move(m)}><span><PixelIcon icon={m.icon} /></span><strong>“{m.words}”</strong></button>)}</div>}
       {lastMove && <div className="move-win"><span>+1 BRAVE AURA</span><strong>“{lastMove.words}”</strong><p>{lastMove.tip} Your answer belongs to you.</p><button onClick={next}>{round === 2 ? "FINISH MISSION →" : "NEXT ROUND →"}</button></div>}
-      {complete && <div className="meeting-finish"><p><PixelIcon icon="🛡️" /> You can tell the truth. You can say “I don’t know.” You can ask for a break. You never have to choose sides.</p><button className="primary" onClick={earn}>OPEN POWER LOOT →</button></div>}
+      {complete && <div className="meeting-finish"><p><PixelIcon icon="🛡️" /> You can use your own words. You can say “I don’t know.” You can ask for a break. You never have to choose sides.</p><button className="primary" onClick={earn}>OPEN POWER LOOT →</button></div>}
     </div>
     <div className="privacy-power"><span><PixelIcon icon="🔒" /></span><p><strong>SMART MOVE:</strong> Ask each grown-up what they will keep private and what they may share.</p></div>
   </QuestShell>;
@@ -1080,7 +1080,7 @@ function FaithQuest({ earn, muted }: { earn: () => void; muted: boolean }) {
       <span><PixelIcon icon={item.icon} /></span><strong>{item.title}</strong><small>{opened.includes(item.title) ? "GEM FOUND ✓" : "TAP STORY"}</small>
     </button>)}</div>
     {story && <div className="story-scroll"><small>HOPE GEM UNLOCKED</small><span><PixelIcon icon={story.icon} /></span><h3>{story.title}</h3><p>{story.story}</p><strong><PixelIcon icon="💎" /> {story.gem}</strong><button onClick={() => say(`${story.story} ${story.gem}`)}><PixelIcon icon="🔊" /> HEAR AGAIN</button></div>}
-    <div className="faith-affirmation"><span><PixelIcon icon="💛" /></span><p><strong>Jesus loves me.</strong><br />I can tell the truth. I can ask for help. All my feelings can come to the campfire.</p></div>
+    <div className="faith-affirmation"><span><PixelIcon icon="💛" /></span><p><strong>Jesus loves me.</strong><br />I can use my own words. I can ask for help. All my feelings can come to the campfire.</p></div>
     {opened.length >= 2 && <button className="primary center" onClick={earn}>COLLECT HOPE LOOT →</button>}
   </QuestShell>;
 }
@@ -1200,11 +1200,12 @@ export default function HomePage() {
   };
 
   const go = (next: Quest) => { playSound("tap", muted); setQuest(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const awardXp = (amount: number) => setXp((value) => value + Math.max(0, amount));
   const earn = () => {
     const badge = names[quest];
     const firstWin = badge && !badges.includes(badge);
     if (firstWin) setBadges((b) => [...b, badge]);
-    setXp((value) => value + (firstWin ? 100 : 25));
+    awardXp(firstWin ? 100 : 25);
     const prize = lootDrops[Math.floor(Math.random() * lootDrops.length)];
     setLoot(prize);
     playSound("win", muted);
@@ -1216,7 +1217,7 @@ export default function HomePage() {
   };
   const claimBonus = () => {
     if (claimed) return;
-    setClaimed(true); setXp((value) => value + 25); playSound("open", muted); say("Mystery block cracked. Plus twenty five X P. Huge W.");
+    setClaimed(true); awardXp(25); playSound("open", muted); say("Mystery block cracked. Plus twenty five X P. Huge W.");
   };
   const runInstallPrompt = async () => {
     if (!installPrompt) return;
@@ -1262,11 +1263,20 @@ export default function HomePage() {
     openInstallSetup={() => unlockAdultArea("install")}
     requestInstallCheck={() => setAdultGateTarget("install")}
   />;
+  const growthHearts = Math.min(10, badges.length + 1);
 
   return <main>
     <header>
       <button className="brand" onClick={() => go("home")} aria-label="Brave Blocks home"><span><PixelIcon icon={avatar} /></span><strong>BRAVE<br />BLOCKS</strong></button>
-      <div className="game-stats"><XPBar xp={xp} /><div className="badge-bar">{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < badges.length} />)}</div></div>
+      <div className="game-stats"><XPBar xp={xp} /><div
+        className="badge-bar"
+        role="progressbar"
+        aria-label="Brave growth hearts. Hearts only fill and never go down."
+        aria-valuemin={1}
+        aria-valuemax={10}
+        aria-valuenow={growthHearts}
+        aria-valuetext={`${growthHearts} of 10 growth hearts filled. This meter only grows.`}
+      ><small className="growth-label" aria-hidden="true">GROWTH</small>{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < growthHearts} />)}</div></div>
       <div className="header-actions">
         <button className="sound-button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}><PixelIcon icon={muted ? "🔇" : "🔊"} /></button>
         <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Pixel Quest Host narrator"><PixelIcon icon="🎮" /><span>VOICE</span></button>

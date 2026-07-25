@@ -67,7 +67,7 @@ const safetyMoves = [
 ];
 
 const loot = [
-  "Truth Gem",
+  "Pixel Prism",
   "Pause Wand",
   "Mixed-Feels Potion",
   "No-Cap Shield",

@@ -24,7 +24,7 @@ function filenameFor(text) {
 }
 
 function voiceSettingsFor(text) {
-  const gentle = /no rush|loved|safe grown-up|hard day|feeling|private|share|break|pass|matter|hope|alone|truth|body/i.test(text);
+  const gentle = /no rush|loved|safe grown-up|hard day|feeling|private|share|break|pass|matter|hope|alone|body/i.test(text);
   return {
     stability: gentle ? 0.52 : 0.4,
     similarity_boost: 0.78,

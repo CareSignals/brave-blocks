@@ -1487,6 +1487,15 @@ button,a{
 }
 .heart .pixel-icon{filter:grayscale(1);opacity:.28}
 .heart.filled .pixel-icon{filter:drop-shadow(0 0 .25em #ff57c7);opacity:1}
+.badge-bar{align-items:center}
+.growth-label{
+  margin-right:4px;
+  color:#74f3ff;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:1px;
+  text-shadow:1px 1px 0 #080a29;
+}
 .quest-icon .pixel-icon,
 .victory-avatar .pixel-icon,
 .loot-drop .pixel-icon,
