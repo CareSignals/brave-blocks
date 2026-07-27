@@ -93,6 +93,7 @@ async function mockFetch(value) {
 
 const self = {
   location: { origin, href: `${origin}${basePath}/sw.js?edition=${edition}&profile=${profile}` },
+  navigator: { get onLine() { return online; } },
   clients: { claim: async () => undefined },
   skipWaiting: async () => undefined,
   addEventListener(type, handler) {

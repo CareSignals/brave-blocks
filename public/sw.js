@@ -163,9 +163,26 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
 
   if (event.request.mode === "navigate") {
-    event.respondWith(
-      caches.match(`${BASE}/`).then((cached) => cached || fetch(event.request)),
-    );
+    event.respondWith((async () => {
+      if (self.navigator.onLine !== false) {
+        try {
+          const response = await fetch(event.request, { cache: "no-cache" });
+          if (response.ok) {
+            const cache = await caches.open(CACHE);
+            await cache.put(localGameUrl(`${BASE}/`), response.clone());
+            return response;
+          }
+        } catch {
+          // A weak connection can still fall back to the complete offline shell.
+        }
+      }
+      const cached = await caches.match(`${BASE}/`);
+      if (cached) return cached;
+      return new Response("Brave Blocks needs one online visit before offline play.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    })());
     return;
   }
 
