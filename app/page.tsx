@@ -432,10 +432,17 @@ function requestOfflineStatus(worker: ServiceWorker) {
 
 async function prepareOfflinePack(): Promise<OfflineStatus> {
   if (!("serviceWorker" in navigator)) return "unsupported";
+  const controlledBeforeUpdate = Boolean(navigator.serviceWorker.controller);
+  if (controlledBeforeUpdate) {
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    }, { once: true });
+  }
   const registration = await navigator.serviceWorker.register(
     `${PUBLIC_BASE}/sw.js?edition=${BRAVE_BLOCKS_EDITION}&profile=${activeProfile.id.toUpperCase()}`,
     { updateViaCache: "none" },
   );
+  await registration.update();
   const changingWorker = registration.installing ?? registration.waiting;
   if (changingWorker) await waitForWorkerActivation(changingWorker);
   const readyRegistration = await navigator.serviceWorker.ready;

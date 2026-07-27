@@ -163,6 +163,11 @@ test("child choices stay in component memory and are not transmitted or analyzed
   assert.match(serviceWorker, /v12-\$\{BUILD_REVISION\}/);
   assert.match(serviceWorker, /PROFILE\.toLowerCase\(\)/);
   assert.match(pageSource, /updateViaCache: "none"/);
+  assert.match(pageSource, /registration\.update\(\)/);
+  assert.match(pageSource, /controllerchange/);
+  assert.match(pageSource, /window\.location\.reload\(\)/);
+  assert.match(serviceWorker, /fetch\(event\.request, \{ cache: "no-cache" \}\)/);
+  assert.match(serviceWorker, /const cached = await caches\.match\(`\$\{BASE\}\/`\)/);
 });
 
 test("responsive and accessibility safeguards cover small screens and reduced motion", () => {
