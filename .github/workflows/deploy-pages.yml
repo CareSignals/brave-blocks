@@ -56,7 +56,7 @@ jobs:
       - name: Build REVIEW edition for deployment
         env:
           NEXT_PUBLIC_BRAVE_BLOCKS_EDITION: REVIEW
-          NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE: MOSES
+          NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE: GENERIC
         run: |
           pnpm exec next build --webpack
           pnpm edition:finalize

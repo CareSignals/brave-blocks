@@ -2,7 +2,7 @@
 
 **Audit date:** July 24, 2026  
 **Target:** WCAG 2.1 Level AA, plus the requested 44 × 44 CSS-pixel minimum touch target check  
-**Scope:** Home/Quest Map, all 10 quests, drawing pad, Pixel Parkour, Beat Lab, dialogs, rewards, and 320px-wide layouts
+**Scope:** Home/Quest Map, all 11 quests, drawing pad, Pixel Parkour, Beat Lab, dialogs, rewards, and 320px-wide layouts
 
 ## Outcome
 
@@ -16,7 +16,7 @@ The requested 44 × 44 target check is stricter than the WCAG 2.1 AA minimum: WC
 |---|---|---|---|
 | 1 | Text on bright gradients did not maintain AA contrast at every gradient endpoint. Examples included the install banner, Axo labels, crew cards, and quest-card copy. | Darkened decorative gradients and placed important copy on opaque, dark panels. Cyan and yellow labels now sit on contrast-safe backgrounds. | 1.4.3 Contrast (Minimum) |
 | 2 | The home status strip and Home-Base Buff copy were visually placed over key art, allowing image colors to compete with the text. | Replaced translucent/image-dependent treatments with solid high-contrast panels. | 1.4.3 Contrast (Minimum), 1.4.5 Images of Text |
-| 3 | The 10 quest names looked like headings but were only bold text inside buttons, so screen-reader heading navigation skipped the entire Quest Map. | Converted every card to a semantic `article` with a real `h3`. A transparent full-card button references the visible title and description with `aria-labelledby`. | 1.3.1 Info and Relationships, 2.4.6 Headings and Labels |
+| 3 | The 11 quest names looked like headings but were only bold text inside buttons, so screen-reader heading navigation skipped the entire Quest Map. | Converted every card to a semantic `article` with a real `h3`. A transparent full-card button references the visible title and description with `aria-labelledby`. | 1.3.1 Info and Relationships, 2.4.6 Headings and Labels |
 | 4 | Keyboard focus was difficult to see and was inconsistent across controls. | Added a high-contrast yellow-and-navy double focus ring for buttons, links, inputs, canvases, and programmatically focusable elements, including a forced-colors fallback. | 2.4.7 Focus Visible |
 | 5 | Drawing on the Slime Doodle canvas depended on pointer input. | Added a native **Stamp Pixel** button as a keyboard-equivalent drawing action, keyboard-operable color controls, concise instructions, and a drawing-status announcement. | 2.1.1 Keyboard |
 | 6 | Dialogs did not consistently keep keyboard focus inside, close with Escape, or return focus to the control that opened them. | Added one shared dialog-focus behavior to the Adult Gate, victory/reward screen, Voice Lab, Pause Portal, and Fire Tablet guide. It moves focus into the dialog, traps Tab/Shift+Tab, handles Escape, and restores focus on close. | 2.1.1 Keyboard, 2.4.3 Focus Order |
@@ -55,7 +55,7 @@ Before the fixes, representative failures included cyan Axo text at about 2.84:1
 
 | Area | Keyboard behavior after fixes |
 |---|---|
-| Quest Map | All 10 quests are full-card native buttons. Tab reaches each card; Enter or Space opens it. |
+| Quest Map | All 11 quests are full-card native buttons. Tab reaches each card; Enter or Space opens it. |
 | Slime Doodle | Color choices and Clear are native buttons. Stamp Pixel supplies a keyboard-equivalent creative action and announces the result. |
 | Pixel Parkour | Jump and Go are native buttons. The world has an accessible description and the HUD announces progress. |
 | Beat Lab | Start/Stop and every sound pad are native buttons. The playing state is exposed with `aria-pressed`. |
@@ -64,7 +64,7 @@ Before the fixes, representative failures included cyan Axo text at about 2.84:1
 
 ## Screen-reader structure and announcements
 
-- The home page has one `h1`, the Quest Map has one `h2`, and each of the 10 quest cards has a navigable `h3`.
+- The home page has one `h1`, the Quest Map has one `h2`, and each of the 11 quest cards has a navigable `h3`.
 - Each minigame has a focused `h1` after navigation.
 - All dialog containers have a dialog role, accessible title, modal state, and managed focus.
 - Progress meters expose meaningful names and values.
@@ -77,7 +77,7 @@ Before the fixes, representative failures included cyan Axo text at about 2.84:1
 - TypeScript type check passed.
 - ESLint passed.
 - The exact production command used by the GitHub Pages workflow completed successfully.
-- Generated production HTML contains exactly 10 quest `h3` headings.
+- Generated production HTML contains exactly 11 quest `h3` headings.
 - Static accessibility invariants confirmed the central live region, native quest actions, five focus-managed dialogs, Escape handling, route-title focus, keyboard drawing alternative, Parkour and Beat Lab controls, progressbar semantics, pressed states, 44px targets, 320px header compaction, and narrow-layout containment.
 - Source review found no positive `tabindex` values and no click handlers placed on noninteractive `div`, `span`, `section`, `article`, or `img` elements.
 - A real 320px browser inspection of the pre-fix deployment confirmed no page-level horizontal overflow but exposed the undersized header controls and missing quest headings that this pass corrects. The post-fix generated production HTML and CSS were then inspected locally.

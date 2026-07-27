@@ -154,6 +154,81 @@ const stories = [
   ["Noah’s Rainbow", "After a long storm, the rainbow was a sign of hope.", "Hard times can end."],
 ];
 
+const machineFeelings = [
+  ["MAD", "VOLCANO MODE", "Something feels unfair, blocked, or not okay.", "hot face, tight hands, fast heart", "Yell, grab, smash, or push away"],
+  ["WORRIED", "WHAT-IF SPAM", "The brain is trying extra hard to predict a problem.", "wobbly belly, fast questions, buzzy body", "Run, cling, freeze, or ask again"],
+  ["FRUSTRATED", "IMPOSSIBLE LEVEL", "A goal is blocked or something is not working yet.", "tight shoulders, hot hands, scrunched face", "Quit, throw it, smash it, or blame"],
+  ["HURT", "KICKED-FROM-THE-SQUAD", "Connection feels damaged, unfair, or far away.", "heavy chest, tears, hot cheeks", "Hide, yell, reject first, or ruin the game"],
+  ["SHAME", "BRAIN-SAYS-I’M-BAD", "The brain is turning a mistake or rejection into an identity.", "sinking belly, quiet voice, looking away", "Hide, blame, lie, or disappear"],
+  ["SAD", "RAIN-CLOUD MODE", "Something important feels lost, changed, or far away.", "heavy chest, tears, low energy", "Hide, curl up, quit, or push comfort away"],
+  ["CONFUSED", "BRAIN BUFFERING", "The brain needs clearer words, fewer steps, or more time.", "foggy head, frozen face, restless hands", "Guess, shut down, copy, or run away"],
+  ["MIXED", "WHOLE COMBO", "More than one feeling can be here at the same time.", "a combo of fast, heavy, hot, or frozen clues", "Do two opposite things at once"],
+];
+
+const machineStories = [
+  [
+    "Axo is tired, the plan changed, and nobody said how long.",
+    "Axo has to wait while another player gets a turn.",
+    "They forgot me. I might never get a turn.",
+    "WORRIED",
+  ],
+  [
+    "Cappy is hungry, rushed, and already tried three times.",
+    "The last block falls and the whole bridge breaks.",
+    "I cannot do anything. This level is impossible.",
+    "FRUSTRATED",
+  ],
+  [
+    "Dumpling already missed the squad and hoped to be first.",
+    "The team chooses somebody else to start.",
+    "They do not want me here.",
+    "HURT",
+  ],
+  [
+    "DJ Glorp is overstimulated and the room is already loud.",
+    "The music stops in the middle of the best part.",
+    "They wrecked it on purpose.",
+    "MAD",
+  ],
+  [
+    "A hard level can get harder when the body is tired, hungry, rushed, or already stressed.",
+    "Something happened. The details can stay private.",
+    "A brain story showed up. You do not have to say it.",
+    "MIXED",
+  ],
+];
+
+const machineChoiceLines = [
+  "Wiggle and freeze. Move the zoomies, then notice the level.",
+  "Grown-up stays. Connection power unlocked.",
+  "Ask for backup. Team build unlocked.",
+  "One block at a time. Tiny move, real progress.",
+  "Say left out. Brave words show the real signal.",
+  "Ask to join next. Clear ask, huge courage.",
+  "Slow the beat. Easy in, longer out.",
+  "Fact check. What happened, and what is the brain guessing?",
+  "Freeze and spy. Pause, check the level, then choose.",
+  "Get backup. Real power means you do not have to handle it alone.",
+  "Words power. Name the feeling and make one clear ask.",
+  "Both mode. The feeling is real, and safe hands still matter.",
+];
+
+const feelingByName = new Map(machineFeelings.map((feeling) => [feeling[0], feeling]));
+const machineStageLines = machineStories.flatMap(([vulnerability, event, thought, emotionName]) => {
+  const [, nickname, message, body, urge] = feelingByName.get(emotionName);
+  return [
+    `Step one. What hit? ${vulnerability} Then, ${event}`,
+    `Step two. Brain and body scan. The brain said, ${thought} The body clue is ${body}.`,
+    `Step three. Feeling boss. ${emotionName}. ${nickname}. ${message}`,
+    `Step four. Move loading. The first urge might be: ${urge}. An urge is a clue, not a command.`,
+  ];
+});
+const ownMachineStageLines = machineFeelings.flatMap(([emotionName, nickname, message, body, urge]) => [
+  `Step two. Brain and body scan. The brain said, A brain story showed up. You do not have to say it. The body clue is ${body}.`,
+  `Step three. Feeling boss. ${emotionName}. ${nickname}. ${message}`,
+  `Step four. Move loading. The first urge might be: ${urge}. An urge is a clue, not a command.`,
+]);
+
 const lines = [
   "Yo, Brave Builder! New quest unlocked. Every feeling is allowed—even the giant, messy ones. You can say it, point, draw, or pass. Gentle hands stay equipped, and your safe grown-ups are on your team. No rush. Choose your next power-up when you’re ready.",
   ...pageReadouts,
@@ -205,6 +280,13 @@ const lines = [
     `${title}. ${story} ${gem}`,
     `${story} ${gem}`,
   ]),
+  "Feeling Machine. Pick a pretend Chaos Crew story, or keep your own vibe private.",
+  "Feeling Machine. Pick a pretend story. Scan five steps. Change the ending. Your own details are optional.",
+  ...machineFeelings.map(([name, nickname, message]) => `${name}. ${nickname}. ${message}`),
+  ...machineStageLines,
+  ...ownMachineStageLines,
+  "Step five. Plot twist portal. Pick a safe move to change what happens next.",
+  ...machineChoiceLines,
   ...loot.map((name) => `Quest W. You unlocked ${name}.`),
   "Mystery block cracked. Plus twenty five X P. Huge W.",
   "Brave Blocks installed. Huge W.",

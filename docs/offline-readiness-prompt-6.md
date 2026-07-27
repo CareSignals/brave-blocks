@@ -56,7 +56,7 @@ The automated lifecycle harness:
 4. Disables the network completely.
 5. Reloads the root navigation from cache.
 6. Requests every generated app-shell asset, all 112 pixel icons, and all 191 narration files.
-7. Checks all 10 quest modules, every QuestShell HEAR IT instruction, and all narrated Pause Portal choices.
+7. Checks all 11 quest modules, every QuestShell HEAR IT instruction, and all narrated Pause Portal choices.
 8. Confirms built-in feedback and Beat Lab sounds use the on-device Web Audio API.
 9. Fails if any request reaches the network after the offline switch.
 

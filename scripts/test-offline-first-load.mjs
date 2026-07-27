@@ -205,12 +205,13 @@ const pageSource = await readFile(join(root, "app", "page.tsx"), "utf8");
 const childQuestNames = [...pageSource.matchAll(/(?:if|else if) \(quest === "([^"]+)"\)/g)]
   .map((match) => match[1])
   .filter((name) => name !== "grownups");
-assert.equal(new Set(childQuestNames).size, 10, "All 10 child-facing quests must remain in the single offline app shell.");
+assert.equal(new Set(childQuestNames).size, 11, "All 11 child-facing quests must remain in the single offline app shell.");
 
 const questInstructions = [...pageSource.matchAll(/<QuestShell title="([^"]+)" subtitle="([^"]+)"/g)]
   .map((match) => `${match[1]}. ${match[2]}`)
   .filter((instruction) => edition === "REVIEW" || !instruction.startsWith("Grown-up Guide."));
 questInstructions.push("Jesus loves me. I am loved on easy days and hard days.");
+questInstructions.push("Feeling Machine. Pick a pretend Chaos Crew story, or keep your own vibe private.");
 for (const instruction of questInstructions) {
   assert(narrationIndex[instruction], `HEAR IT narration is missing from the offline index: ${instruction}`);
   await offlineFetch(`${basePath}/audio/narration/${narrationIndex[instruction]}`);
