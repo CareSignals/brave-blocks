@@ -114,6 +114,6 @@ The strings below are the complete unique inventory of text that can appear or b
 
 ## Verification completed
 
-- CHILD: 10 quest modules, 112 pixel icons, 179 narration files, and zero network requests after the first online load.
-- REVIEW: 10 quest modules, 112 pixel icons, 184 narration files, and zero network requests after the first online load.
+- CHILD: 11 quest modules, 112 pixel icons, 236 narration files, and zero network requests after the first online load.
+- REVIEW: 11 quest modules, 112 pixel icons, 241 narration files, and zero network requests after the first online load.
 - Both manifests, edition markers, narration indexes, file sets, and service-worker readiness responses are checked automatically.

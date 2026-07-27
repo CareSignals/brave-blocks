@@ -1,7 +1,7 @@
 # Brave Blocks Wording Review — Prompt 9
 
 **Review date:** July 25, 2026  
-**Scope:** Home and Quest Map, all 10 child-facing quests, Pause Portal, Voice Lab, rewards and loot, page-read narration, quest narration, and the REVIEW/CHILD meeting cards  
+**Scope:** Home and Quest Map, all 11 child-facing quests, Pause Portal, Voice Lab, rewards and loot, page-read narration, quest narration, and the REVIEW/CHILD meeting cards
 **Review lenses:** trauma therapist, children’s attorney, and early-reading specialist
 
 ## Outcome

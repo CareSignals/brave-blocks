@@ -5,7 +5,7 @@ const requestedEdition = process.env.NEXT_PUBLIC_BRAVE_BLOCKS_EDITION?.trim().to
 if (requestedEdition !== "REVIEW" && requestedEdition !== "CHILD") {
   throw new Error(`NEXT_PUBLIC_BRAVE_BLOCKS_EDITION must be REVIEW or CHILD, received "${requestedEdition}".`);
 }
-const requestedProfile = process.env.NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE?.trim().toUpperCase() || "MOSES";
+const requestedProfile = process.env.NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE?.trim().toUpperCase() || "GENERIC";
 if (requestedProfile !== "MOSES" && requestedProfile !== "GENERIC") {
   throw new Error(`NEXT_PUBLIC_BRAVE_BLOCKS_PROFILE must be MOSES or GENERIC, received "${requestedProfile}".`);
 }

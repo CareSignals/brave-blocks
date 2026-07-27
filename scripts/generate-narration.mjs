@@ -13,10 +13,14 @@ const indexPath = join(root, "app", "narration-index.json");
 const publicIndexPath = join(audioDirectory, "index.json");
 const childIndexPath = join(root, "app", "narration-index.child.json");
 const publicChildIndexPath = join(audioDirectory, "child-index.json");
-const apiKey = process.env.ELEVENLABS_API_KEY;
+const apiKey = process.env.ELEVENLABS_API_KEY
+  ?? (process.env.ELEVENLABS_KEY_FILE
+    ? (await readFile(process.env.ELEVENLABS_KEY_FILE, "utf8")).trim()
+    : undefined);
+const requestedVoiceId = process.env.ELEVENLABS_VOICE_ID?.trim();
 
 if (!apiKey) {
-  console.error("Missing ELEVENLABS_API_KEY. Run this command from the same Terminal session:");
+  console.error("Missing ELEVENLABS_API_KEY or ELEVENLABS_KEY_FILE. Run this command from the same Terminal session:");
   console.error('read -s "ELEVENLABS_API_KEY?Paste your key (hidden): "; echo; export ELEVENLABS_API_KEY');
   process.exit(1);
 }
@@ -54,6 +58,7 @@ async function api(path, options = {}) {
 }
 
 async function findVoice() {
+  if (requestedVoiceId) return { voice_id: requestedVoiceId, name: VOICE_NAME };
   const params = new URLSearchParams({
     search: VOICE_NAME,
     page_size: "100",

@@ -19,7 +19,7 @@ import {
 import type { EasterEgg } from "./profile.types";
 import type { PowerNeedId, SongTrack } from "./song-library.types";
 
-type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "grownups";
+type Quest = "home" | "feelings" | "body" | "calm" | "loadout" | "meeting" | "base" | "safety" | "parkour" | "beats" | "faith" | "machine" | "grownups";
 type Loot = { icon: string; name: string; line: string };
 type AdultArea = "guide" | "install";
 type OfflineStatus = "checking" | "caching" | "ready" | "error" | "unsupported";
@@ -72,6 +72,269 @@ const feelings = [
   { name: "Confused", face: "😕", color: "#79c9bd", clue: "foggy + unsure" },
   { name: "Loved", face: "🥰", color: "#ff8fbd", clue: "warm + safe" },
   { name: "Mixed", face: "🫨", color: "#ff9f43", clue: "a whole combo" },
+];
+
+type MachineFeeling = {
+  id: string;
+  name: string;
+  nickname: string;
+  face: string;
+  color: string;
+  message: string;
+  body: string;
+  urge: string;
+};
+
+type MachineChoice = {
+  icon: string;
+  label: string;
+  signal: string;
+  ending: string;
+  spoken: string;
+};
+
+type MachineStory = {
+  id: string;
+  crew: string;
+  icon: string;
+  teaser: string;
+  vulnerability: string;
+  event: string;
+  thought: string;
+  emotionId: string;
+  choices: MachineChoice[];
+};
+
+const machineFeelings: MachineFeeling[] = [
+  {
+    id: "mad",
+    name: "MAD",
+    nickname: "VOLCANO MODE",
+    face: "😠",
+    color: "#ff6b62",
+    message: "Something feels unfair, blocked, or not okay.",
+    body: "hot face, tight hands, fast heart",
+    urge: "Yell, grab, smash, or push away",
+  },
+  {
+    id: "worried",
+    name: "WORRIED",
+    nickname: "WHAT-IF SPAM",
+    face: "😟",
+    color: "#9f86ff",
+    message: "The brain is trying extra hard to predict a problem.",
+    body: "wobbly belly, fast questions, buzzy body",
+    urge: "Run, cling, freeze, or ask again",
+  },
+  {
+    id: "frustrated",
+    name: "FRUSTRATED",
+    nickname: "IMPOSSIBLE LEVEL",
+    face: "😤",
+    color: "#ff9f43",
+    message: "A goal is blocked or something is not working yet.",
+    body: "tight shoulders, hot hands, scrunched face",
+    urge: "Quit, throw it, smash it, or blame",
+  },
+  {
+    id: "hurt",
+    name: "HURT",
+    nickname: "KICKED-FROM-THE-SQUAD",
+    face: "💔",
+    color: "#ff8fbd",
+    message: "Connection feels damaged, unfair, or far away.",
+    body: "heavy chest, tears, hot cheeks",
+    urge: "Hide, yell, reject first, or ruin the game",
+  },
+  {
+    id: "shame",
+    name: "SHAME",
+    nickname: "BRAIN-SAYS-I’M-BAD",
+    face: "🫥",
+    color: "#6f65c7",
+    message: "The brain is turning a mistake or rejection into an identity.",
+    body: "sinking belly, quiet voice, looking away",
+    urge: "Hide, blame, lie, or disappear",
+  },
+  {
+    id: "sad",
+    name: "SAD",
+    nickname: "RAIN-CLOUD MODE",
+    face: "😢",
+    color: "#55a7f3",
+    message: "Something important feels lost, changed, or far away.",
+    body: "heavy chest, tears, low energy",
+    urge: "Hide, curl up, quit, or push comfort away",
+  },
+  {
+    id: "confused",
+    name: "CONFUSED",
+    nickname: "BRAIN BUFFERING",
+    face: "😕",
+    color: "#79c9bd",
+    message: "The brain needs clearer words, fewer steps, or more time.",
+    body: "foggy head, frozen face, restless hands",
+    urge: "Guess, shut down, copy, or run away",
+  },
+  {
+    id: "mixed",
+    name: "MIXED",
+    nickname: "WHOLE COMBO",
+    face: "🫨",
+    color: "#f5c84c",
+    message: "More than one feeling can be here at the same time.",
+    body: "a combo of fast, heavy, hot, or frozen clues",
+    urge: "Do two opposite things at once",
+  },
+];
+
+const genericMachineChoices: MachineChoice[] = [
+  {
+    icon: "🧠",
+    label: "FREEZE + SPY",
+    signal: "People see a pause instead of the first impulse.",
+    ending: "The thinking brain gets a turn.",
+    spoken: "Freeze and spy. Pause, check the level, then choose.",
+  },
+  {
+    icon: "🤝",
+    label: "GET BACKUP",
+    signal: "A safe grown-up knows connection comes first.",
+    ending: "The feeling is not a solo boss battle.",
+    spoken: "Get backup. Real power means you do not have to handle it alone.",
+  },
+  {
+    icon: "💬",
+    label: "WORDS POWER",
+    signal: "People hear one clear feeling and one clear ask.",
+    ending: "The problem has a fair chance to change.",
+    spoken: "Words power. Name the feeling and make one clear ask.",
+  },
+  {
+    icon: "🛡️",
+    label: "BOTH MODE",
+    signal: "People see the feeling and a safe move together.",
+    ending: "A huge feeling can be real while the body stays safe.",
+    spoken: "Both mode. The feeling is real, and safe hands still matter.",
+  },
+];
+
+const machineStories: MachineStory[] = [
+  {
+    id: "axo",
+    crew: "AXO MAXXO",
+    icon: "🦎",
+    teaser: "The waiting level feels forever.",
+    vulnerability: "Axo is tired, the plan changed, and nobody said how long.",
+    event: "Axo has to wait while another player gets a turn.",
+    thought: "They forgot me. I might never get a turn.",
+    emotionId: "worried",
+    choices: [
+      {
+        icon: "🛡️",
+        label: "WIGGLE + FREEZE",
+        signal: "People see Axo reset his zoomy body.",
+        ending: "He can wait without handling the alarm alone.",
+        spoken: "Wiggle and freeze. Move the zoomies, then notice the level.",
+      },
+      {
+        icon: "🤝",
+        label: "GROWN-UP STAYS",
+        signal: "A safe grown-up knows Axo needs company.",
+        ending: "Waiting becomes a team level.",
+        spoken: "Grown-up stays. Connection power unlocked.",
+      },
+    ],
+  },
+  {
+    id: "cappy",
+    crew: "CAPY BAPPY",
+    icon: "🐹",
+    teaser: "The block bridge crashes again.",
+    vulnerability: "Cappy is hungry, rushed, and already tried three times.",
+    event: "The last block falls and the whole bridge breaks.",
+    thought: "I cannot do anything. This level is impossible.",
+    emotionId: "frustrated",
+    choices: [
+      {
+        icon: "🤝",
+        label: "ASK FOR BACKUP",
+        signal: "People hear that Cappy wants teamwork.",
+        ending: "The blocked goal gets another path.",
+        spoken: "Ask for backup. Team build unlocked.",
+      },
+      {
+        icon: "🧱",
+        label: "ONE BLOCK",
+        signal: "People see Cappy slow the level down.",
+        ending: "One tiny move replaces the impossible-level story.",
+        spoken: "One block at a time. Tiny move, real progress.",
+      },
+    ],
+  },
+  {
+    id: "dumpling",
+    crew: "DUMPLING SUPREME",
+    icon: "🥟",
+    teaser: "Another player gets picked first.",
+    vulnerability: "Dumpling already missed the squad and hoped to be first.",
+    event: "The team chooses somebody else to start.",
+    thought: "They do not want me here.",
+    emotionId: "hurt",
+    choices: [
+      {
+        icon: "💬",
+        label: "SAY LEFT OUT",
+        signal: "People hear the hurt hiding under the heat.",
+        ending: "The squad gets a chance to understand.",
+        spoken: "Say left out. Brave words show the real signal.",
+      },
+      {
+        icon: "🤝",
+        label: "JOIN NEXT",
+        signal: "People hear one clear ask.",
+        ending: "Not first does not have to mean not wanted.",
+        spoken: "Ask to join next. Clear ask, huge courage.",
+      },
+    ],
+  },
+  {
+    id: "glorp",
+    crew: "DJ GLORP",
+    icon: "🟢",
+    teaser: "The favorite beat gets interrupted.",
+    vulnerability: "DJ Glorp is overstimulated and the room is already loud.",
+    event: "The music stops in the middle of the best part.",
+    thought: "They wrecked it on purpose.",
+    emotionId: "mad",
+    choices: [
+      {
+        icon: "🛡️",
+        label: "SLOW THE BEAT",
+        signal: "People see Glorp lower the body volume.",
+        ending: "There is enough room to choose the next track.",
+        spoken: "Slow the beat. Easy in, longer out.",
+      },
+      {
+        icon: "🧠",
+        label: "FACT CHECK",
+        signal: "People hear a question instead of blame.",
+        ending: "The Alarm Boss shrinks back to its real size.",
+        spoken: "Fact check. What happened, and what is the brain guessing?",
+      },
+    ],
+  },
+  {
+    id: "own",
+    crew: "MY OWN VIBE",
+    icon: "🧠",
+    teaser: "Use a feeling—or keep the details private.",
+    vulnerability: "A hard level can get harder when the body is tired, hungry, rushed, or already stressed.",
+    event: "Something happened. The details can stay private.",
+    thought: "A brain story showed up. You do not have to say it.",
+    emotionId: "mixed",
+    choices: genericMachineChoices,
+  },
 ];
 
 const bodySpots = [
@@ -334,7 +597,7 @@ function OfflineReadinessIndicator({ status }: { status: OfflineStatus }) {
   const copy = {
     checking: ["Checking offline pack…", "Keep this page connected for a moment."],
     caching: ["Saving offline pack…", "Keep this page online until the ready message appears."],
-    ready: ["Ready for offline play", "All 10 quests, HEAR IT narration, icons, and built-in sounds are saved."],
+    ready: ["Ready for offline play", "All 11 quests, HEAR IT narration, icons, and built-in sounds are saved."],
     error: ["Offline pack needs Wi-Fi", "Reconnect, reopen Brave Blocks, and wait for the ready message."],
     unsupported: ["Offline play is unavailable", "This browser does not support the offline game pack."],
   }[status];
@@ -611,7 +874,8 @@ function PausePortal({ onClose }: { onClose: () => void }) {
 
 function Home({
   go, avatar, setAvatar, xp, collection, claimed, mysteryEgg, claimBonus,
-  powerKitPicks, togglePowerKitChoice, requestReset, openInstallSetup, requestInstallCheck,
+  powerKitPicks, togglePowerKitChoice, playerName, setPlayerName,
+  requestReset, openInstallSetup, requestInstallCheck,
 }: {
   go: (quest: Quest) => void;
   avatar: string;
@@ -623,6 +887,8 @@ function Home({
   claimBonus: () => void;
   powerKitPicks: string[];
   togglePowerKitChoice: (id: string, label: string) => void;
+  playerName: string;
+  setPlayerName: (name: string) => void;
   requestReset: () => void;
   openInstallSetup: () => void;
   requestInstallCheck: () => void;
@@ -638,6 +904,7 @@ function Home({
     { id: "parkour" as Quest, icon: "☁️", title: "Pixel Parkour", text: "Jump the slime", color: "teal", tag: "ARCADE MODE" },
     { id: "beats" as Quest, icon: "🎵", title: activeProfile.stationTitle, text: activeProfile.stationSubtitle, color: "pink", tag: "MUSIC MODE" },
     { id: "faith" as Quest, icon: "✨", title: "Faith Campfire", text: "Tap a Bible story", color: "gold", tag: "STORY MODE" },
+    { id: "machine" as Quest, icon: "🌀", title: "Feeling Machine", text: "Run a feeling. Change the ending", color: "purple", tag: "MACHINE MODE" },
   ];
 
   return <>
@@ -653,7 +920,7 @@ function Home({
       />
       <div className="hero-status">
         <span className="status-avatar"><PixelIcon icon={avatar} /></span>
-        <div><small>{activeProfile.playerLabel} HAS ENTERED THE WORLD</small><strong>CHOOSE A PLAYER · PICK A QUEST · GET THE W</strong></div>
+        <div><small>{(playerName.trim() || activeProfile.playerLabel).toUpperCase()} HAS ENTERED THE WORLD</small><strong>CHOOSE A PLAYER · PICK A QUEST · GET THE W</strong></div>
         <span className="status-live">● SAFE BASE ONLINE</span>
       </div>
       <div className="promise key-art-promise">
@@ -666,6 +933,18 @@ function Home({
       <div>
         <small>CHOOSE YOUR PLAYER</small>
         <div className="avatar-row">{avatars.map((a) => <button key={a.name} title={a.name} aria-label={`Choose ${a.name}`} aria-pressed={avatar === a.icon} className={avatar === a.icon ? "avatar-pick active" : "avatar-pick"} onClick={() => { playSound("tap", false); say(`${a.name} selected`); setAvatar(a.icon); }}><PixelIcon icon={a.icon} /></button>)}</div>
+        <label className="player-name-entry">
+          <span>PLAYER NAME · STAYS ON THIS SCREEN</span>
+          <input
+            value={playerName}
+            maxLength={16}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="PLAYER 1"
+            aria-label="Optional player name. It stays only on this screen."
+            onChange={(event) => setPlayerName(event.target.value)}
+          />
+        </label>
       </div>
       <button className={claimed ? "mystery claimed" : "mystery"} onClick={claimBonus} disabled={claimed}>
         <span>{claimed ? <PixelIcon icon={mysteryEgg?.icon ?? "✨"} /> : "?"}</span>
@@ -741,6 +1020,210 @@ function Home({
     </section>
     <p className="privacy-note"><PixelIcon icon="🔐" /> No saves. No sending. Your picks stay on this screen.</p>
   </>;
+}
+
+function FeelingMachine({
+  earn,
+  skip,
+  muted,
+}: {
+  earn: () => void;
+  skip: () => void;
+  muted: boolean;
+}) {
+  const [storyId, setStoryId] = useState<string | null>(null);
+  const [ownFeelingId, setOwnFeelingId] = useState("mixed");
+  const [started, setStarted] = useState(false);
+  const [step, setStep] = useState(0);
+  const [choice, setChoice] = useState<MachineChoice | null>(null);
+  const completed = useRef(false);
+  const story = machineStories.find((item) => item.id === storyId) ?? null;
+  const feeling = machineFeelings.find((item) => item.id === (story?.id === "own" ? ownFeelingId : story?.emotionId))
+    ?? machineFeelings.at(-1)!;
+
+  const stageSpeech = (nextStep: number, activeStory = story, activeFeeling = feeling) => {
+    if (!activeStory) return "Feeling Machine. Pick a pretend Chaos Crew story, or keep your own vibe private.";
+    if (nextStep === 0) return `Step one. What hit? ${activeStory.vulnerability} Then, ${activeStory.event}`;
+    if (nextStep === 1) return `Step two. Brain and body scan. The brain said, ${activeStory.thought} The body clue is ${activeFeeling.body}.`;
+    if (nextStep === 2) return `Step three. Feeling boss. ${activeFeeling.name}. ${activeFeeling.nickname}. ${activeFeeling.message}`;
+    if (nextStep === 3) return `Step four. Move loading. The first urge might be: ${activeFeeling.urge}. An urge is a clue, not a command.`;
+    return "Step five. Plot twist portal. Pick a safe move to change what happens next.";
+  };
+
+  const startStory = (id: string) => {
+    const nextStory = machineStories.find((item) => item.id === id);
+    if (!nextStory) return;
+    const nextFeeling = machineFeelings.find((item) => item.id === (id === "own" ? ownFeelingId : nextStory.emotionId))
+      ?? machineFeelings.at(-1)!;
+    setStoryId(id);
+    setStep(0);
+    setChoice(null);
+    setStarted(id !== "own");
+    completed.current = false;
+    playSound("open", muted);
+    if (id !== "own") say(stageSpeech(0, nextStory, nextFeeling));
+  };
+
+  const startPrivate = () => {
+    if (!story) return;
+    setStarted(true);
+    playSound("open", muted);
+    say(stageSpeech(0));
+  };
+
+  const moveTo = (nextStep: number) => {
+    setStep(nextStep);
+    setChoice(null);
+    playSound("tap", muted);
+    say(stageSpeech(nextStep));
+  };
+
+  const finish = () => {
+    if (completed.current) return;
+    completed.current = true;
+    earn();
+  };
+
+  const pass = () => {
+    if (completed.current) return;
+    completed.current = true;
+    skip();
+  };
+
+  if (!started) return <QuestShell
+    title="Feeling Machine"
+    subtitle="Run a feeling. Change the ending."
+    icon="🌀"
+    spokenInstructions="Feeling Machine. Pick a pretend Chaos Crew story, or keep your own vibe private."
+  >
+    <div className="machine-portal">
+      <div className="machine-intro">
+        <span><PixelIcon icon="🧪" /></span>
+        <div><small>MACHINE MODE</small><h2>FEELINGS DROP CLUES</h2><p>Pretend stories first. Your own details stay optional.</p></div>
+      </div>
+      <div className="machine-story-grid" aria-label="Pick a story">
+        {machineStories.map((item) => <button
+          type="button"
+          key={item.id}
+          className={storyId === item.id ? "machine-story-card active" : "machine-story-card"}
+          aria-pressed={storyId === item.id}
+          onClick={() => startStory(item.id)}
+        >
+          <span><PixelIcon icon={item.icon} /></span>
+          <strong>{item.crew}</strong>
+          <small>{item.teaser}</small>
+          <b>{item.id === "own" ? "PRIVATE MODE →" : "RUN STORY →"}</b>
+        </button>)}
+      </div>
+      {story?.id === "own" && <section className="machine-own-picker" aria-labelledby="own-vibe-title">
+        <small>MY OWN VIBE · NO STORY NEEDED</small>
+        <h2 id="own-vibe-title">Pick a feeling boss</h2>
+        <p>You can point. You never have to tell what happened.</p>
+        <div className="machine-feeling-grid">
+          {machineFeelings.map((item) => <button
+            type="button"
+            key={item.id}
+            aria-pressed={ownFeelingId === item.id}
+            className={ownFeelingId === item.id ? "active" : ""}
+            style={{ "--feeling-color": item.color } as React.CSSProperties}
+            onClick={() => {
+              setOwnFeelingId(item.id);
+              playSound("tap", muted);
+              say(`${item.name}. ${item.nickname}. ${item.message}`);
+            }}
+          >
+            <span><PixelIcon icon={item.face} /></span>
+            <strong>{item.name}</strong>
+            <small>{item.nickname}</small>
+          </button>)}
+        </div>
+        <button type="button" className="primary machine-private-start" onClick={startPrivate}>START PRIVATE · DETAILS STAY MYSTERY →</button>
+      </section>}
+      <RegulationSkip onSkip={pass} />
+    </div>
+  </QuestShell>;
+
+  if (!story) return null;
+
+  return <QuestShell
+    title="Feeling Machine"
+    subtitle="Run a feeling. Change the ending."
+    icon="🌀"
+    spokenInstructions={stageSpeech(step)}
+  >
+    <div className="machine-shell">
+      <div className="machine-progress" role="progressbar" aria-label="Feeling Machine steps" aria-valuemin={1} aria-valuemax={5} aria-valuenow={step + 1}>
+        <strong>STAGE {step + 1} / 5</strong>
+        <div>{[0, 1, 2, 3, 4].map((item) => <i key={item} className={item <= step ? "active" : ""} />)}</div>
+      </div>
+
+      <section className="machine-stage-card" style={{ "--machine-color": feeling.color } as React.CSSProperties}>
+        {step === 0 && <>
+          <span className="machine-stage-icon"><PixelIcon icon="⚡" /></span>
+          <small className="machine-stage-kicker">WHAT HIT?</small>
+          <h2 className="machine-stage-title">THE LEVEL CHANGED</h2>
+          <div className="machine-clue"><b>BEFORE</b><p>{story.vulnerability}</p></div>
+          <div className="machine-clue"><b>THEN</b><p>{story.event}</p></div>
+        </>}
+        {step === 1 && <>
+          <span className="machine-stage-icon"><PixelIcon icon="🧠" /></span>
+          <small className="machine-stage-kicker">BRAIN + BODY SCAN</small>
+          <h2 className="machine-stage-title">THE ALARM MADE A STORY</h2>
+          <div className="machine-clue brain"><b>BRAIN STORY</b><p>“{story.thought}”</p></div>
+          <div className="machine-clue body"><b>BODY CLUES</b><p>{feeling.body}</p></div>
+          <p className="machine-no-cap">A brain story can feel true. We can still spy for no-cap facts.</p>
+        </>}
+        {step === 2 && <>
+          <span className="machine-stage-icon feeling" style={{ background: feeling.color }}><PixelIcon icon={feeling.face} /></span>
+          <small className="machine-stage-kicker">FEELING BOSS</small>
+          <h2 className="machine-feeling-name">{feeling.name}</h2>
+          <strong className="machine-feeling-nickname">{feeling.nickname}</strong>
+          <p className="machine-stage-copy">{feeling.message}</p>
+          <div className="machine-signal"><b>MESSAGE TO ME</b><p>“Something matters. Slow down and get clues.”</p></div>
+        </>}
+        {step === 3 && <>
+          <span className="machine-stage-icon"><PixelIcon icon="🎮" /></span>
+          <small className="machine-stage-kicker">MOVE LOADING…</small>
+          <h2 className="machine-stage-title">THE FIRST URGE</h2>
+          <div className="machine-urge"><PixelIcon icon="🛡️" /><p>{feeling.urge}</p></div>
+          <p className="machine-stage-copy"><strong>NO CAP:</strong> An urge is a clue, not a command. You still pick the move.</p>
+        </>}
+        {step === 4 && <>
+          <span className="machine-stage-icon"><PixelIcon icon="🌀" /></span>
+          <small className="machine-stage-kicker">PLOT-TWIST PORTAL</small>
+          <h2 className="machine-stage-title">PICK THE NEXT MOVE</h2>
+          <div className="machine-choice-grid">
+            {story.choices.map((item) => <button
+              type="button"
+              key={item.label}
+              className={choice?.label === item.label ? "machine-choice active" : "machine-choice"}
+              aria-pressed={choice?.label === item.label}
+              onClick={() => {
+                setChoice(item);
+                playSound("open", muted);
+                say(item.spoken);
+              }}
+            >
+              <span><PixelIcon icon={item.icon} /></span><strong>{item.label}</strong><small>{item.ending}</small>
+            </button>)}
+          </div>
+          {choice && <div className="machine-ending" role="status">
+            <span><PixelIcon icon="✨" /></span>
+            <div><small>NEW SIGNAL TO OTHERS</small><p>{choice.signal}</p><strong>NEW ENDING: {choice.ending}</strong></div>
+          </div>}
+        </>}
+      </section>
+
+      <div className="machine-controls">
+        <button type="button" className="secondary" onClick={() => step === 0 ? setStarted(false) : moveTo(step - 1)}>← BACK</button>
+        <button type="button" className="secondary machine-hear" onClick={() => say(stageSpeech(step))}><PixelIcon icon="🔊" /> HEAR</button>
+        {step < 4
+          ? <button type="button" className="primary" onClick={() => moveTo(step + 1)}>NEXT →</button>
+          : <button type="button" className="primary" disabled={!choice} onClick={finish}>PORTAL W · GET LOOT →</button>}
+      </div>
+      <RegulationSkip onSkip={pass} />
+    </div>
+  </QuestShell>;
 }
 
 function Feelings({ earn, muted }: { earn: () => void; muted: boolean }) {
@@ -1495,6 +1978,11 @@ function GrownupGuide({ offlineStatus }: { offlineStatus: OfflineStatus }) {
     <div className="guide-grid">{guide.cards.map((card) => <article key={card.title}>
       <span><PixelIcon icon={card.icon} /></span><h3>{card.title}</h3><p>{card.body}</p>
     </article>)}</div>
+    <a className="adult-companion-link" href="https://caresignals.github.io/power-up-pals-dbt/" target="_blank" rel="noopener noreferrer">
+      <span><PixelIcon icon="🧭" /></span>
+      <div><small>ADULT COMPANION</small><strong>OPEN POWER-UP PALS</strong><p>Caregiver pathways, DBT skill context, and co-regulation support.</p></div>
+      <b>OPEN ↗</b>
+    </a>
     <div className="professional-note"><strong>{guide.noticeLead}</strong> {guide.noticeBody}</div>
   </QuestShell>;
 }
@@ -1555,6 +2043,7 @@ export default function HomePage() {
   const [badges, setBadges] = useState<string[]>([]);
   const [xp, setXp] = useState(0);
   const [avatar, setAvatar] = useState(activeProfile.avatarIcon);
+  const [playerName, setPlayerName] = useState(activeProfile.displayName ?? "");
   const [collection, setCollection] = useState<Loot[]>([]);
   const [loot, setLoot] = useState<Loot | null>(null);
   const [completionReward, setCompletionReward] = useState(0);
@@ -1586,7 +2075,7 @@ export default function HomePage() {
     setNarrationMuted(muted);
   }, [muted]);
 
-  const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", loadout: "Choice Pack", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Praise Disc", faith: "Hope Gem", grownups: "" };
+  const names: Record<Quest, string> = { home: "", feelings: "Vibe Gem", body: "Radar Chip", calm: "Dragon Shield", loadout: "Choice Pack", meeting: "Talk Shield", base: "Safe Base", safety: "Gentle Hands Glow", parkour: "Cloud Crown", beats: "Praise Disc", faith: "Hope Gem", machine: "Plot-Twist Core", grownups: "" };
   const pageWords: Record<Quest, string> = {
     home: "Welcome back, player. Pick your character. Then pick your next W.",
     feelings: "Vibe Mixer. Tap every feeling in your mix.",
@@ -1599,6 +2088,7 @@ export default function HomePage() {
     parkour: "Pixel Parkour. Tap jump before slime or blocks. Then tap go.",
     beats: "Jesus loves me. I am loved on easy days and hard days.",
     faith: "Faith Campfire. Tap a Bible story to find a hope gem.",
+    machine: "Feeling Machine. Pick a pretend story. Scan five steps. Change the ending. Your own details are optional.",
     grownups: editionContent.grownupRouteSpeech,
   };
 
@@ -1681,6 +2171,7 @@ export default function HomePage() {
     setBadges([]);
     setXp(0);
     setAvatar(activeProfile.avatarIcon);
+    setPlayerName(activeProfile.displayName ?? "");
     setCollection([]);
     setLoot(null);
     setCompletionReward(0);
@@ -1708,6 +2199,7 @@ export default function HomePage() {
   else if (quest === "parkour") content = <ParkourQuest earn={earn} avatar={avatar} muted={muted} />;
   else if (quest === "beats") content = <PraisePowerUp earn={earnSignalCheck} skip={skipQuest} muted={muted} />;
   else if (quest === "faith") content = <FaithQuest earn={earn} muted={muted} />;
+  else if (quest === "machine") content = <FeelingMachine earn={earn} skip={skipQuest} muted={muted} />;
   else if (quest === "grownups" && IS_REVIEW_EDITION) content = <GrownupGuide offlineStatus={offlineStatus} />;
   else content = <Home
     go={go}
@@ -1720,11 +2212,13 @@ export default function HomePage() {
     claimBonus={claimBonus}
     powerKitPicks={powerKitPicks}
     togglePowerKitChoice={togglePowerKitChoice}
+    playerName={playerName}
+    setPlayerName={setPlayerName}
     requestReset={() => setShowReset(true)}
     openInstallSetup={() => unlockAdultArea("install")}
     requestInstallCheck={() => setAdultGateTarget("install")}
   />;
-  const growthHearts = Math.min(10, badges.length + 1);
+  const growthHearts = Math.min(11, badges.length + 1);
 
   return <main>
     <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</div>
@@ -1735,10 +2229,10 @@ export default function HomePage() {
         role="progressbar"
         aria-label="Brave growth hearts. Hearts only fill and never go down."
         aria-valuemin={1}
-        aria-valuemax={10}
+        aria-valuemax={11}
         aria-valuenow={growthHearts}
-        aria-valuetext={`${growthHearts} of 10 growth hearts filled. This meter only grows.`}
-      ><small className="growth-label" aria-hidden="true">GROWTH</small>{[0,1,2,3,4,5,6,7,8,9].map((i) => <PixelHeart key={i} filled={i < growthHearts} />)}</div></div>
+        aria-valuetext={`${growthHearts} of 11 growth hearts filled. This meter only grows.`}
+      ><small className="growth-label" aria-hidden="true">GROWTH</small>{[0,1,2,3,4,5,6,7,8,9,10].map((i) => <PixelHeart key={i} filled={i < growthHearts} />)}</div></div>
       <div className="header-actions">
         <button className="sound-button" aria-pressed={muted} onClick={() => setMuted((m) => !m)} aria-label={muted ? "Turn sound on" : "Turn sound off"}><PixelIcon icon={muted ? "🔇" : "🔊"} /></button>
         <button className="voice-button" onClick={() => setShowVoiceLab(true)} aria-label="Hear about the Pixel Quest Host narrator"><PixelIcon icon="🎮" /><span>VOICE</span></button>
